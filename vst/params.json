@@ -4003,10 +4003,49 @@
   {
    "key": "ControllerDelaySource",
    "name": "Ctrl Delay Source",
-   "min": 0,
-   "max": 39,
-   "default": 0,
-   "display": "int"
+   "options": [
+    "Off",
+    "LFO 1",
+    "LFO 1 * MW",
+    "LFO 2",
+    "LFO 2 * AT",
+    "LFO 3",
+    "Filter Env",
+    "Amp Env",
+    "Env 3",
+    "Env 4",
+    "Keytrack",
+    "Velocity",
+    "Release Vel",
+    "Aftertouch",
+    "Poly Pressure",
+    "Pitch Bend",
+    "Modwheel",
+    "Sustain Pedal",
+    "Foot Control",
+    "Breath Control",
+    "Control W",
+    "Control X",
+    "Control Y",
+    "Control Z",
+    "Control Delay",
+    "Modifier 1",
+    "Modifier 2",
+    "Modifier 3",
+    "Modifier 4",
+    "Min",
+    "Max",
+    "Voice Num",
+    "Voice %16",
+    "Voice %8",
+    "Voice %4",
+    "Voice %2",
+    "Unison Voice",
+    "Uni Detune",
+    "Uni De-Pan",
+    "Uni De-Oct"
+   ],
+   "default": "Off"
   },
   {
    "key": "ControllerDelay",
@@ -6457,6 +6496,56 @@
    "default": 0,
    "display": "string",
    "poll": true
+  },
+  {
+   "key": "patch_slot_26",
+   "name": "PATCH 26",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "patch_slot_27",
+   "name": "PATCH 27",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "patch_slot_28",
+   "name": "PATCH 28",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "patch_slot_29",
+   "name": "PATCH 29",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "patch_slot_30",
+   "name": "PATCH 30",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
   }
  ],
  "sections": [
@@ -6511,7 +6600,12 @@
     "favourite",
     "fav_save",
     "fav_delete",
-    "fav_text"
+    "fav_text",
+    "patch_slot_26",
+    "patch_slot_27",
+    "patch_slot_28",
+    "patch_slot_29",
+    "patch_slot_30"
    ]
   },
   {

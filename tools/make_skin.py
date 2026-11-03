@@ -12,12 +12,18 @@ OUT = os.path.join(ROOT, "vst")
 PARTS = os.path.join(ROOT, "skin", "parts")
 FONT = os.path.join(OUT, "fonts")
 Y86, W, H = 86, 1280, 628
-GOLD = (207, 151, 46)
-GOLD_DARK = (168, 122, 36)
-BODY = (112, 112, 112)
-CREAM = (255, 218, 148)
-INK = (24, 20, 12)
-DIM = (210, 196, 170)
+# LOOK (env VAVRA_LOOK): "rings" = gearmulator's mqDefault; "yellow" = the first microQ's panel; "navy" = the later dark blue one
+LOOK = os.environ.get("VAVRA_LOOK", "rings")
+PAL = {
+    #          panel fill        title bar       body             label           title text      dim             bg (None: rings)
+    "rings":  ((207, 151, 46), (207, 151, 46), (112, 112, 112), (255, 218, 148), (24, 20, 12), (210, 196, 170), None),
+    "yellow": ((28, 52, 130), (28, 52, 130), (246, 214, 40), (22, 40, 112), (255, 255, 255), (60, 76, 130), (246, 214, 40)),
+    "navy":   ((186, 198, 222), (186, 198, 222), (34, 46, 78), (236, 240, 250), (28, 40, 72), (150, 164, 196), (34, 46, 78)),
+}[LOOK]
+GOLD, GOLD_DARK, BODY, CREAM, INK, DIM, FLAT = PAL
+GOLD_DARK = (168, 122, 36) if FLAT is None else PAL[0]
+SUB = INK if FLAT is None else CREAM          # headings inside a panel body
+LIVE = "ffda94" if FLAT is None else "%02x%02x%02x" % CREAM
 KNOB = 84
 
 PARAMS = {p["key"]: p for p in json.load(open(os.path.join(OUT, "params.json")))["params"]}
@@ -28,8 +34,15 @@ def F(size, face="LiberationSans-Bold.ttf"):
     return _f[(size, face)]
 TITLE = "LiberationSans-BoldItalic.ttf"
 
-BG = Image.open(os.path.join(PARTS, "bg.png")).convert("RGB")
+BG = Image.open(os.path.join(PARTS, "bg.png")).convert("RGB") if FLAT is None else Image.new("RGB", (W, H), FLAT)
 LOGO = Image.open(os.path.join(PARTS, "logo.png")).convert("RGBA")
+if FLAT is not None:      # the hardware looks: only the "Vavra" script, in the label colour
+    a = LOGO.split()[3]
+    r, g, b = LOGO.convert("RGB").split()
+    dark = Image.eval(r, lambda v: 255 if v < 60 else 0)
+    mask = Image.composite(a, Image.new("L", a.size, 0), dark).crop((0, int(LOGO.height * 0.33), LOGO.width, LOGO.height))
+    LOGO = Image.new("RGBA", mask.size, CREAM + (0,))
+    LOGO.putalpha(mask)
 lines = []
 emit = lines.append
 
@@ -43,10 +56,18 @@ class Page:
 
     def panel(self, x, y, w, h, title=None):
         """an mqDefault section: gold frame, darker gold title bar with a dark italic title, grey body"""
-        self.d.rounded_rectangle((x, y, x + w, y + h), 6, fill=GOLD)
-        self.d.rectangle((x + 3, y + 30, x + w - 3, y + h - 3), fill=BODY)
+        if FLAT is None:
+            self.d.rounded_rectangle((x, y, x + w, y + h), 6, fill=GOLD)
+            self.d.rectangle((x + 3, y + 30, x + w - 3, y + h - 3), fill=BODY)
+            if title:
+                self.d.text((x + 12, y + 4), title, font=F(21, TITLE), fill=INK)
+            return
+        # the microQ panel: a thin rounded frame, the section name in a filled chip like "Oscillators" on the hardware
+        self.d.rounded_rectangle((x, y, x + w, y + h), 12, outline=GOLD, width=3)
         if title:
-            self.d.text((x + 12, y + 4), title, font=F(21, TITLE), fill=INK)
+            tw = int(self.d.textlength(title, font=F(19, TITLE)))
+            self.d.rounded_rectangle((x, y, x + tw + 30, y + 28), 10, fill=GOLD)
+            self.d.text((x + 14, y + 3), title, font=F(19, TITLE), fill=INK)
 
     def label(self, cx, y, s, size=17, color=CREAM):
         self.d.text((cx, y), s, font=F(size), fill=color, anchor="ma")
@@ -70,7 +91,7 @@ class Page:
     def small_knob(self, cx, cy, key, label=None, live_label=None, bw=118):
         """dense pages: a 70 px knob, its label in 15 px (or a live label: a readout of another key)"""
         if live_label:
-            self.widgets.append('readout cx=%d cy=%d w=140 h=22 label="" key=%s box=0 tsize=15 tcolor=ffda94 tweight=700' % (cx, cy - 50 + Y86, live_label))
+            self.widgets.append('readout cx=%d cy=%d w=140 h=20 label="" key=%s box=0 tsize=14 tcolor=%s tweight=700' % (cx, cy - 44 + Y86, live_label, LIVE))
         else:
             self.label(cx, cy - 58, label, 15)
         self.widgets.append('knob cx=%d cy=%d r=%d label="" key=%s ns=0 vs=18 vy=10 bw=%d' % (cx, cy + Y86, 30, key, bw))
@@ -107,17 +128,17 @@ theme_panel=707070
 theme_line=a87a24
 theme_ink=ffda94
 theme_ink_dim=d2c4aa
-theme_accent=cf972e
+theme_accent=e8b04a
 theme_accent_hi=e8b04a
 theme_knob_face=1a1a1a
 theme_knob_ring=000000
 theme_knob_dot=f2d21c
-theme_lcd=269029
-theme_box=3a3a3a
+theme_lcd=262626
+theme_box=262626
 theme_seg_active=cf972e
 theme_seg_inactive=505050
 theme_seg_active_tx=181410
-theme_btn_bg=3a3a3a
+theme_btn_bg=262626
 theme_btn_text=ffda94
 theme_btn_text_plain=ffda94
 theme_display_bg=269029
@@ -125,20 +146,26 @@ theme_display_cell=2c9a2f
 theme_display_off=23842a
 theme_display_bezel=a87a24
 theme_display_ink=08200a
-theme_tile_on=a87a24
+theme_tile_on=6e5114
 label_scale=1.25
 style=td3
 art_css=skin.css
-knob_strip=images/knob_mq.png
+knob_strip=images/KNOBSTRIP.png
 qlink_bounds=column""")
 
 
 def header(p):
     """the logo, and the bank / sound steppers in the microQ's LCD green"""
-    lg = LOGO.resize((int(LOGO.width * 0.36), int(LOGO.height * 0.36)), Image.LANCZOS)
-    p.im.paste(lg, (16, 4), lg)
-    p.d.rounded_rectangle((280, 8, 1272, 108), 6, fill=GOLD)
-    p.d.rectangle((283, 38, 1269, 105), fill=BODY)
+    lg = LOGO.resize((int(LOGO.width * 0.36), int(LOGO.height * 0.36)), Image.LANCZOS) if FLAT is None else LOGO.resize((int(LOGO.width * 0.42), int(LOGO.height * 0.42)), Image.LANCZOS)
+    p.im.paste(lg, (16, 4 if FLAT is None else 18), lg)
+    if FLAT is None:
+        p.d.rounded_rectangle((280, 8, 1272, 108), 6, fill=GOLD)
+        p.d.rectangle((283, 38, 1269, 105), fill=BODY)
+    else:
+        p.d.rounded_rectangle((280, 8, 1272, 108), 12, outline=GOLD, width=3)
+        for x0, t in ((282, "BANK"), (602, "SOUND")):
+            tw = int(p.d.textlength(t, font=F(19, TITLE)))
+            p.d.rounded_rectangle((x0, 8, x0 + tw + 24, 34), 10, fill=GOLD)
     p.d.text((292, 12), "BANK", font=F(19, TITLE), fill=INK)
     p.d.text((612, 12), "SOUND", font=F(19, TITLE), fill=INK)
     p.widgets.append('stepper w=290 h=44 cx=440 cy=%d label="" key=bank_index get=bank_name prev=bank_prev next=bank_next style=dotmatrix persistent=1' % (72 + Y86))
@@ -167,8 +194,8 @@ p.done()
 p = Page("BANKS", ["preset", "bank_index"])
 p.panel(8, 8, 250, 612, "BANKS")
 p.panel(270, 8, 1002, 612, "SOUNDS")
-p.widgets.append('list x=22 y=%d w=222 h=200 cols=1 rows=3 gap=8 th=60 key=bank_slot' % (54 + Y86))
-p.d.text((133, 300), "FAVOURITES", font=F(18, TITLE), fill=INK, anchor="ma")
+p.widgets.append('list x=22 y=%d w=222 h=160 cols=1 rows=3 gap=6 th=48 key=bank_slot' % (54 + Y86))
+p.d.text((133, 300), "FAVOURITES", font=F(18, TITLE), fill=SUB, anchor="ma")
 p.widgets.append('button cx=133 cy=%d w=200 h=44 label="+FAV" key=fav_save' % (370 + Y86))
 p.widgets.append('button cx=133 cy=%d w=200 h=44 label="-FAV" key=fav_delete' % (430 + Y86))
 p.readout(133, 500, "fav_text", "", 222, "plain")
@@ -176,7 +203,7 @@ p.label(133, 540, "PICK THEM IN MPC'S", 13, DIM)
 p.label(133, 560, "PRESET MENU", 13, DIM)
 p.widgets.append('stepper w=560 h=40 cx=600 cy=%d label="" key=preset get=preset_name prev=preset_prev next=preset_next style=dotmatrix persistent=1' % (66 + Y86))
 p.widgets.append('stepper w=280 h=40 cx=1110 cy=%d label="" key=patch_page_text get=patch_page_text prev=patch_page_prev next=patch_page_next style=dotmatrix' % (66 + Y86))
-p.widgets.append('list x=284 y=%d w=974 h=500 cols=5 rows=5 gap=6 th=90 key=patch_slot order=cols' % (104 + Y86))
+p.widgets.append('list x=284 y=%d w=974 h=500 cols=3 rows=10 gap=6 th=44 key=patch_slot order=cols' % (104 + Y86))
 p.done()
 
 
@@ -187,8 +214,8 @@ def osc(p, n, y, x0=8, x1=1272, sub=True):
     top = [(o + "Shape", "Shape", 150), (o + "PwmSource", "PWM Source", 170), (o + "FmSource", "FM Source", 170)]
     if n == 2:
         top.append(("Sync", "Sync to 3"))
-    p.row(x0, x1, y + 104, top + [(o + "Octave", "Octave"), (o + "Semi", "Semi"), (o + "Detune", "Detune")])
-    knobs = [(o + "PulseWidth", "Pulsewidth"), (o + "Pwm", "PWM"), (o + "FmAmount", "FM"), (o + "KeyTrack", "Keytrack"), (o + "BendRange", "Bend Range")]
+    p.row(x0, x1, y + 104, top)
+    knobs = [(o + "Octave", "Octave"), (o + "Semi", "Semi"), (o + "Detune", "Detune"), (o + "PulseWidth", "Pulsewidth"), (o + "Pwm", "PWM"), (o + "FmAmount", "FM"), (o + "KeyTrack", "Keytrack"), (o + "BendRange", "Bend Range")]
     if sub:
         knobs += [(o + "SubFreqDiv", "Sub Divide"), (o + "SubVolume", "Sub Level")]
     p.row(x0, x1, y + 218, knobs)
@@ -210,7 +237,7 @@ p.panel(8, 320, 1264, 300, "MIXER")
 for i, (lv, bl, nm) in enumerate([("O1Level", "O1Balance", "Osc 1"), ("O2Level", "O2Balance", "Osc 2"), ("O3Level", "O3Balance", "Osc 3"),
                                   ("NoiseLevel", "NoiseBalance", "Noise/Ext"), ("RingModLevel", "RingModBalance", "Ring Mod")]):
     cx = 8 + int(1264 / 5 * (i + 0.5))
-    p.d.text((cx, 356), nm.upper(), font=F(18, TITLE), fill=INK, anchor="ma")
+    p.d.text((cx, 356), nm.upper(), font=F(18, TITLE), fill=SUB, anchor="ma")
     p.small_knob(cx - 60, 470, lv, "Level")
     p.small_knob(cx + 60, 470, bl, "F1 < > F2")
 p.label(640, 560, "NOISE / EXTERNAL INPUT MODE: AMP & GLIDE PAGE", 13, DIM)
@@ -289,7 +316,7 @@ def slots(name, kind, title, n):
     for i in range(n):
         c, r = i % 4, i // 4
         cx, y = 8 + int(1264 / 4 * (c + 0.5)), 50 + r * 290
-        p.d.text((cx, y - 6), "SLOT %d" % (i + 1), font=F(18, TITLE), fill=INK, anchor="ma")
+        p.d.text((cx, y - 6), "SLOT %d" % (i + 1), font=F(18, TITLE), fill=SUB, anchor="ma")
         p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, y + 48 + Y86, (pre % (i + 1)) + "Source"))
         p.label(cx, y + 74, "TO", 13, DIM)
         p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, y + 112 + Y86, (pre % (i + 1)) + "Destination"))
@@ -308,7 +335,7 @@ p.panel(8, 8, 1264, 420, "MODIFIERS")
 for i in range(4):
     m = "Mod%d" % (i + 1)
     cx = 8 + int(1264 / 4 * (i + 0.5))
-    p.d.text((cx, 46), "MODIFIER %d" % (i + 1), font=F(18, TITLE), fill=INK, anchor="ma")
+    p.d.text((cx, 46), "MODIFIER %d" % (i + 1), font=F(18, TITLE), fill=SUB, anchor="ma")
     p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, 104 + Y86, m + "Source1"))
     p.widgets.append('popup cx=%d cy=%d w=200 h=34 label="" key=%s' % (cx, 164 + Y86, m + "Operator"))
     p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, 224 + Y86, m + "Source2"))
@@ -332,7 +359,7 @@ for n, y in ((1, 8), (2, 320)):
     p.d.line((240, y + 40, 240, y + 290), fill=GOLD_DARK, width=2)
     for i in range(14):
         c, r = i % 7, i // 7
-        p.small_knob(250 + int(1012 / 7 * (c + 0.5)), y + 96 + r * 116, "fx%d_p%d" % (n, i + 1), live_label="fx%d_l%d" % (n, i + 1))
+        p.small_knob(250 + int(1012 / 7 * (c + 0.5)), y + 92 + r * 128, "fx%d_p%d" % (n, i + 1), live_label="fx%d_l%d" % (n, i + 1))
 p.done()
 
 # ---------------------------------------------------------------- ARP
@@ -348,5 +375,18 @@ p.label(640, 440, "THE 16-STEP USER PATTERN IS PART OF EACH SOUND; IT IS NOT EDI
 p.label(640, 480, "PATTERN USER PLAYS THE SOUND'S OWN STEPS, 1-15 ARE THE MICROQ'S PRESETS.", 18)
 p.done()
 
-open(os.path.join(OUT, "layout.conf"), "w").write("\n".join(lines) + "\n")
+THEMES = {
+    "yellow": dict(theme_bg="f6d628", theme_panel="f6d628", theme_line="1c3482", theme_ink="16286f", theme_ink_dim="3c4c82", theme_accent="ffffff",
+                   theme_accent_hi="ffffff", theme_lcd="1c3482", theme_box="1c3482", theme_seg_active="1c3482", theme_seg_inactive="d8bc1c",
+                   theme_seg_active_tx="ffffff", theme_btn_bg="1c3482", theme_btn_text="ffffff", theme_btn_text_plain="ffffff", theme_display_bezel="1c3482",
+                   theme_tile_on="c8202a"),
+    "navy": dict(theme_bg="222e4e", theme_panel="222e4e", theme_line="bac6de", theme_ink="ecf0fa", theme_ink_dim="96a4c4", theme_accent="ecf0fa",
+                 theme_accent_hi="ffffff", theme_lcd="141c32", theme_box="141c32", theme_seg_active="bac6de", theme_seg_inactive="141c32",
+                 theme_seg_active_tx="1c2848", theme_btn_bg="141c32", theme_btn_text="ecf0fa", theme_btn_text_plain="ecf0fa", theme_display_bezel="bac6de",
+                 theme_tile_on="c8202a"),
+}
+if LOOK in THEMES:
+    lines = [("%s=%s" % (l.split("=")[0], THEMES[LOOK][l.split("=")[0]])) if l.split("=")[0] in THEMES[LOOK] else l for l in lines[:1]] + lines[1:]
+    lines[0] = "\n".join(("%s=%s" % (l.split("=")[0], THEMES[LOOK][l.split("=")[0]])) if l.split("=")[0] in THEMES[LOOK] else l for l in lines[0].split("\n"))
+open(os.path.join(OUT, "layout.conf"), "w").write(("\n".join(lines) + "\n").replace("KNOBSTRIP", "knob_mq" if FLAT is None else "knob_fp"))
 print("layout.conf: %d lines" % len(lines))

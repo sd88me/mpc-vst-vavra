@@ -951,7 +951,7 @@ int eng_get(void *p, const char *key, char *buf, int n) {
         const int t = in->raw[fx == 1 ? kFx1Type : kFx2Type].load();
         const int i = fb - (fx == 1 ? kFx1Base : kFx2Base);
         const char *lab = fx == 1 ? (t < FX1_TYPES ? g_fx1_labels[t][i] : "") : (t < FX2_TYPES ? g_fx2_labels[t][i] : "");
-        return put(buf, n, "%s", lab[0] ? lab : "-");
+        return put(buf, n, "%s", lab[0] ? lab : " ");
     }
     if (!strcmp(key, "state")) {
         int off = put(buf, n, "{\"state_version\":1,\"bank\":%d,\"preset\":%d,\"gain\":%d", in->bank.load(), in->preset.load(), in->gain.load());
@@ -969,7 +969,9 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     auto it = mq_index().find(key);
     if (it != mq_index().end()) {
         const mq_param_t &q = g_mq_params[it->second];
-        return put(buf, n, "%d", raw_to_value(q, field_get(q, in->raw[q.idx].load())));
+        const int v = raw_to_value(q, field_get(q, in->raw[q.idx].load()));
+        const int lo = q.kind == 0 ? q.lo - q.off : 0, hi = q.kind == 0 ? q.hi - q.off : q.kind == 2 ? 4 : q.kind == 3 ? q.nmap - 1 : q.hi - q.lo;
+        return put(buf, n, "%d", q.kind == 2 ? clampi(v, -4, 4) : clampi(v, lo, hi));      // a sound may hold a byte outside the table's range
     }
     return -1;
 }

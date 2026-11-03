@@ -226,7 +226,7 @@ static const mq_param_t g_mq_params[] = {
     {"Slot8SSource", 306, 0, 39, 1, 0, nullptr, 0, 0, 0, 0},
     {"Slot8SDestination", 307, 0, 57, 1, 0, nullptr, 0, 0, 0, 0},
     {"Slot8SAmount", 308, 0, 127, 0, 64, nullptr, 0, 64, 0, 0},
-    {"ControllerDelaySource", 309, 0, 39, 0, 0, nullptr, 0, 0, 0, 0},
+    {"ControllerDelaySource", 309, 0, 39, 1, 0, nullptr, 0, 0, 0, 0},
     {"ControllerDelay", 310, 0, 127, 0, 0, nullptr, 0, 0, 0, 0},
     {"ArpMode", 311, 0, 3, 1, 0, nullptr, 0, 0, 0, 0},
     {"ArpPattern", 312, 0, 16, 1, 0, nullptr, 0, 0, 0, 0},
@@ -326,7 +326,7 @@ static const mq_param_t g_mq_params[] = {
 static const int MQ_NUM_PARAMS = 315;
 #define VV_BANKS 3
 #define VV_PER_BANK 100
-#define VV_PATCH_TILES 25
+#define VV_PATCH_TILES 30
 static const char *const g_fx1_labels[7][14] = {
     {"", "", "", "", "", "", "", "", "", "", "", "", "", ""},
     {"SPEED", "DEPTH", "", "DELAY", "", "", "", "", "", "", "", "", "", ""},

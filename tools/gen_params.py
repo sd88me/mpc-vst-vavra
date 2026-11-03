@@ -56,7 +56,7 @@ for e in D["midipackets"]["singledump"]:
     if e.get("type") == "param" and "mask" in e:
         MASK[e["name"]] = (int(str(e["mask"]), 0), int(str(e.get("shift", 0)), 0))
 
-N_PER_BANK, N_BANKS, N_PATCH_TILES = 100, 3, 25
+N_PER_BANK, N_BANKS, N_PATCH_TILES = 100, 3, 30
 
 NAMES = {
     "PitchModSrc": "Pitch Mod Source", "PitchModAmount": "Pitch Mod Amount", "GlideEnable": "Glide", "GlideMode": "Glide Mode",
@@ -144,6 +144,8 @@ for r in rows:
     if r["page"] != 0:
         continue
     name, idx, lo, hi, tt = r["name"], r["index"], r["min"], r["max"], r["toText"]
+    if name == "ControllerDelaySource":
+        tt = "modSource"                           # the table gives it no value list
     if name == "Version" or tt == "ascii" or name.endswith("SpeedClocked"):
         continue
     if 130 <= idx <= 143 or 146 <= idx <= 159:
@@ -212,7 +214,7 @@ for fx in (1, 2):
 # ---- BANKS page
 for i in range(1, N_BANKS + 1):
     add(dict(key="bank_slot_%d" % i, name="BANK %d" % i, min=0, max=1, default=0, momentary=True, display="string", poll=True), "Banks")
-for i in range(1, N_PATCH_TILES + 1):
+for i in range(1, 26):
     add(dict(key="patch_slot_%d" % i, name="PATCH %d" % i, min=0, max=1, default=0, momentary=True, display="string", poll=True), "Banks")
 add(dict(key="patch_page_text", name="PAGE", min=0, max=0, default=0, display="string", poll=True), "Banks")
 add(dict(key="patch_page_prev", name="PAGE -", min=0, max=1, default=0, momentary=True), "Banks")
@@ -222,6 +224,8 @@ add(dict(key="favourite", name="FAVOURITE", min=0, max=63, default=63, display="
 add(dict(key="fav_save", name="SAVE FAV", min=0, max=1, default=0, momentary=True), "Banks")
 add(dict(key="fav_delete", name="DEL FAV", min=0, max=1, default=0, momentary=True), "Banks")
 add(dict(key="fav_text", name="FAVOURITES", min=0, max=0, default=0, display="string", poll=True), "Banks")
+for i in range(26, N_PATCH_TILES + 1):                # appended later (0.1.0 had 25 tiles)
+    add(dict(key="patch_slot_%d" % i, name="PATCH %d" % i, min=0, max=1, default=0, momentary=True, display="string", poll=True), "Banks")
 
 order = ["Browse", "Banks", "System"] + [s for s, _ in SECTIONS] + ["Other"]
 sections = [{"label": s, "keys": keys_in[s]} for s in order if s in keys_in]
