@@ -5,7 +5,7 @@
    "key": "bank_index",
    "name": "BANK",
    "min": 0,
-   "max": 2,
+   "max": 63,
    "default": 0,
    "display": "int"
   },
@@ -13,7 +13,7 @@
    "key": "preset",
    "name": "PRESET",
    "min": 0,
-   "max": 99,
+   "max": 127,
    "default": 0,
    "display": "int"
   },
@@ -4583,16 +4583,16 @@
    "key": "Arp00Step",
    "name": "Arp Step 1 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp00Glide",
@@ -4622,16 +4622,16 @@
    "key": "Arp01Step",
    "name": "Arp Step 2 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp01Glide",
@@ -4661,16 +4661,16 @@
    "key": "Arp02Step",
    "name": "Arp Step 3 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp02Glide",
@@ -4700,16 +4700,16 @@
    "key": "Arp03Step",
    "name": "Arp Step 4 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp03Glide",
@@ -4739,16 +4739,16 @@
    "key": "Arp04Step",
    "name": "Arp Step 5 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp04Glide",
@@ -4778,16 +4778,16 @@
    "key": "Arp05Step",
    "name": "Arp Step 6 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp05Glide",
@@ -4817,16 +4817,16 @@
    "key": "Arp06Step",
    "name": "Arp Step 7 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp06Glide",
@@ -4856,16 +4856,16 @@
    "key": "Arp07Step",
    "name": "Arp Step 8 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp07Glide",
@@ -4895,16 +4895,16 @@
    "key": "Arp08Step",
    "name": "Arp Step 9 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp08Glide",
@@ -4934,16 +4934,16 @@
    "key": "Arp09Step",
    "name": "Arp Step 10 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp09Glide",
@@ -4973,16 +4973,16 @@
    "key": "Arp10Step",
    "name": "Arp Step 11 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp10Glide",
@@ -5012,16 +5012,16 @@
    "key": "Arp11Step",
    "name": "Arp Step 12 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp11Glide",
@@ -5051,16 +5051,16 @@
    "key": "Arp12Step",
    "name": "Arp Step 13 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp12Glide",
@@ -5090,16 +5090,16 @@
    "key": "Arp13Step",
    "name": "Arp Step 14 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp13Glide",
@@ -5129,16 +5129,16 @@
    "key": "Arp14Step",
    "name": "Arp Step 15 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp14Glide",
@@ -5168,16 +5168,16 @@
    "key": "Arp15Step",
    "name": "Arp Step 16 Step",
    "options": [
-    "*",
-    " ",
-    "-",
-    "<",
-    ">",
-    "<>",
+    "Note",
+    "Pause",
+    "Previous",
+    "First",
+    "Last",
+    "First+Last",
     "Chord",
-    "?"
+    "Random"
    ],
-   "default": "*"
+   "default": "Note"
   },
   {
    "key": "Arp15Glide",
@@ -5211,12 +5211,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp00Timing",
@@ -5226,12 +5226,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp01Length",
@@ -5241,12 +5241,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp01Timing",
@@ -5256,12 +5256,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp02Length",
@@ -5271,12 +5271,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp02Timing",
@@ -5286,12 +5286,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp03Length",
@@ -5301,12 +5301,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp03Timing",
@@ -5316,12 +5316,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp04Length",
@@ -5331,12 +5331,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp04Timing",
@@ -5346,12 +5346,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp05Length",
@@ -5361,12 +5361,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp05Timing",
@@ -5376,12 +5376,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp06Length",
@@ -5391,12 +5391,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp06Timing",
@@ -5406,12 +5406,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp07Length",
@@ -5421,12 +5421,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp07Timing",
@@ -5436,12 +5436,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp08Length",
@@ -5451,12 +5451,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp08Timing",
@@ -5466,12 +5466,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp09Length",
@@ -5481,12 +5481,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp09Timing",
@@ -5496,12 +5496,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp10Length",
@@ -5511,12 +5511,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp10Timing",
@@ -5526,12 +5526,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp11Length",
@@ -5541,12 +5541,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp11Timing",
@@ -5556,12 +5556,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp12Length",
@@ -5571,12 +5571,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp12Timing",
@@ -5586,12 +5586,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp13Length",
@@ -5601,12 +5601,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp13Timing",
@@ -5616,12 +5616,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp14Length",
@@ -5631,12 +5631,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp14Timing",
@@ -5646,12 +5646,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "Arp15Length",
@@ -5661,12 +5661,12 @@
     "-3",
     "-2",
     "-1",
-    "As Note Length",
+    "Note",
     "+1",
     "+2",
     "+3"
    ],
-   "default": "As Note Length"
+   "default": "Note"
   },
   {
    "key": "Arp15Timing",
@@ -5676,12 +5676,12 @@
     "<<<",
     "<<",
     "<",
-    "|",
+    "On Beat",
     ">",
     ">>",
     ">>>"
    ],
-   "default": "|"
+   "default": "On Beat"
   },
   {
    "key": "fx1_p1",
@@ -6546,6 +6546,101 @@
    "momentary": true,
    "display": "string",
    "poll": true
+  },
+  {
+   "key": "bank_slot_4",
+   "name": "BANK 4",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_slot_5",
+   "name": "BANK 5",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_slot_6",
+   "name": "BANK 6",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_slot_7",
+   "name": "BANK 7",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_slot_8",
+   "name": "BANK 8",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_slot_9",
+   "name": "BANK 9",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_slot_10",
+   "name": "BANK 10",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_page_text",
+   "name": "BANK PAGE",
+   "min": 0,
+   "max": 0,
+   "default": 0,
+   "display": "string",
+   "poll": true
+  },
+  {
+   "key": "bank_page_prev",
+   "name": "BANK PAGE -",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true
+  },
+  {
+   "key": "bank_page_next",
+   "name": "BANK PAGE +",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "momentary": true
   }
  ],
  "sections": [
@@ -6605,7 +6700,17 @@
     "patch_slot_27",
     "patch_slot_28",
     "patch_slot_29",
-    "patch_slot_30"
+    "patch_slot_30",
+    "bank_slot_4",
+    "bank_slot_5",
+    "bank_slot_6",
+    "bank_slot_7",
+    "bank_slot_8",
+    "bank_slot_9",
+    "bank_slot_10",
+    "bank_page_text",
+    "bank_page_prev",
+    "bank_page_next"
    ]
   },
   {

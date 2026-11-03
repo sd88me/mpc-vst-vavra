@@ -126,6 +126,21 @@ int main(int argc, char **argv) {
     e->midi(i, off, 3);
     CHECK(rms > 0.0005, "bank C note -> rms %.4f peak %.3f", rms, pk);
 
+    // a sound-set file from banks/ (bank 3 onwards), played with MPC's transport running at 120 BPM
+    printf("bank count page \"%s\", bank tile 4 \"%s\"\n", get(e, i, "bank_page_text").c_str(), get(e, i, "bank_slot_4").c_str());
+    if (!get(e, i, "bank_slot_4").empty()) {
+        e->set_param(i, "bank_index", "3");
+        render_rms(e, i, 0.5);
+        printf("file bank \"%s\" sound \"%s\" tile1 \"%s\"\n", get(e, i, "bank_name").c_str(), get(e, i, "preset_name").c_str(), get(e, i, "patch_slot_1").c_str());
+        CHECK(get(e, i, "preset_name").size() > 5, "file bank sound named");
+        if (e->song_pos) for (int k = 0; k < 10; k++) e->song_pos(i, k * 0.0116, 120.0, 1, 128);
+        e->midi(i, on, 3);
+        rms = render_rms(e, i, secs, &pk);
+        e->midi(i, off, 3);
+        CHECK(rms > 0.0005, "file bank note (transport running) -> rms %.4f peak %.3f", rms, pk);
+        if (e->song_pos) e->song_pos(i, -1, 0, 0, 128);
+    }
+
     // state round trip into a second instance
     e->set_param(i, "bank_index", "0");
     e->set_param(i, "preset", "20");

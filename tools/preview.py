@@ -20,7 +20,7 @@ def F(n):
 
 P = {p["key"]: p for p in json.load(open(os.path.join(VST, "params.json")))["params"]}
 SAMPLE = {"bank_name": "BANK A", "preset_name": "A001 LosAngeles2019 T", "lcd1": "Inst:1  Sound:A001", "lcd2": "  LosAngeles2019 T",
-          "loading_status": "Ready - ROM loaded", "engine_stats": "DROPOUTS 0   CPU 40%", "patch_page_text": "PAGE 1 / 4",
+          "loading_status": "Ready - ROM loaded", "engine_stats": "DROPOUTS 0   CPU 40%", "patch_page_text": "PAGE 1 / 4", "bank_page_text": "1 / 1",
           "fav_text": "FAVOURITES 3 / 64"}
 NAMES = ["LosAngeles2019 T", "Rain        WMF", "Chor 2.0      S", "Zeitlos       T", "Expensive  WMF", "OBX Purple5 PROX", "Queen-mom    HM",
          "Juanita      HM", "Demolition   DK", "The Showroom  T"]
@@ -109,7 +109,8 @@ def render(name, ws, art):
                     x0, y0 = int(x + c * (cw + gap)), y + r * (th + gap)
                     on = n == 0
                     d.rectangle((x0, y0, int(x0 + cw), y0 + th), fill=T("theme_tile_on") if on else T("theme_box"))
-                    t = ("BANK %s" % "ABC"[n]) if key == "bank_slot" else "%03d %s" % (n + 1, NAMES[n % len(NAMES)])
+                    t = (["BANK A", "BANK B", "BANK C", "MICROQ FACTORYSET 2000 A", "MICROQ FACTORYSET 2000 B", "MICROQ FACTORYSET 2000 C",
+                         "MQ FACTORY2001 A", "MQ FACTORY2001 B", "MQ FACTORY2001 C", ""][n] if n < 10 else "") if key == "bank_slot" else "%03d %s" % (n + 1, NAMES[n % len(NAMES)])
                     d.text((x0 + 12, y0 + th // 2), t, font=F(15), fill=(255, 255, 255) if on else T("theme_accent"), anchor="lm")
     im.save(os.path.join(OUT, re.sub(r"[^A-Za-z0-9]+", "_", name) + ".png"))
 

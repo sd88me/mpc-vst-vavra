@@ -40,6 +40,7 @@ extern "C" {
 
 #include "synthLib/deviceTypes.h"
 #include "synthLib/midiTypes.h"
+#include "synthLib/midiToSysex.h"
 #include "synthLib/plugin.h"
 #include "synthLib/romLoader.h"
 #include "mqLib/device.h"
@@ -63,6 +64,8 @@ constexpr int kRomBank0 = 0x40;                  // MidiBufferNum::SingleBankA
 constexpr int kDeviceId = 0x7f;                  // omni
 constexpr int kFx1Type = 128, kFx2Type = 144, kFx1Base = 130, kFx2Base = 146;
 constexpr int kFavSlots = 64;
+constexpr int kBankTiles = 10;                   // the BANKS page's bank list, paged
+constexpr int kMaxBanks = 64;
 
 using Dump = std::vector<uint8_t>;
 
@@ -145,6 +148,12 @@ struct Inst {
     char rom_name[96] = "";
     char names[VV_BANKS][VV_PER_BANK][kNameLen + 1] = {};
     Dump rom_dump[VV_BANKS][VV_PER_BANK];                    // every ROM single, from sounds.dat or the harvest
+    struct FileBank { std::string name; std::vector<Dump> sounds; };
+    std::vector<FileBank> fbanks;                             // <dir>/banks/: sound sets (.mid .syx), 100 singles per bank, after A/B/C
+    std::atomic<int> bank_page{0};
+    /* the host's transport (HAS_SONG_POS): the arpeggiator and clocked LFOs follow MPC's tempo through gearmulator's MIDI clock */
+    std::atomic<double> host_bpm{0.0}, host_ppq{-1.0};
+    std::atomic<bool> host_playing{false};
     bool have[VV_BANKS][VV_PER_BANK] = {};
     char cur_name[kNameLen + 1] = "";
     char lcd[2][21] = {"", ""};
@@ -167,6 +176,58 @@ struct Inst {
     }
     void push(Cmd &&c) { std::lock_guard<std::mutex> l(qm); if (q.size() < 4096) q.push_back(std::move(c)); }
 };
+
+int bank_count(Inst *in) { return VV_BANKS + (int)in->fbanks.size(); }
+int bank_size(Inst *in, int b) { return b < VV_BANKS ? VV_PER_BANK : b - VV_BANKS < (int)in->fbanks.size() ? (int)in->fbanks[b - VV_BANKS].sounds.size() : 0; }
+std::string bank_title(Inst *in, int b) {
+    if (b < VV_BANKS) return std::string("BANK ") + (char)('A' + b);
+    return b - VV_BANKS < (int)in->fbanks.size() ? in->fbanks[b - VV_BANKS].name : std::string("-");
+}
+void name_of(const std::vector<uint8_t> &d, char *out);
+/* a sound's name (under sm): ROM ones once harvested, file ones from their dump */
+std::string sound_name(Inst *in, int b, int p) {
+    char nm[17] = "";
+    if (b < VV_BANKS) { if (p >= 0 && p < VV_PER_BANK && in->have[b][p]) return in->names[b][p]; return ""; }
+    if (p >= 0 && p < bank_size(in, b)) name_of(in->fbanks[b - VV_BANKS].sounds[p], nm);
+    return nm;
+}
+
+/* <dir>/banks/: every single dump (392 bytes, F0 3E 10 .. 10 ..) in each .mid / .syx file, 100 to a bank, named after the file */
+void scan_banks(Inst *in) {
+    const std::string dir = in->dir + "/banks";
+    DIR *d = opendir(dir.c_str());
+    if (!d) return;
+    std::vector<std::string> files;
+    while (struct dirent *e = readdir(d)) {
+        const std::string n = e->d_name;
+        if (n.size() > 4 && (!strcasecmp(n.c_str() + n.size() - 4, ".mid") || !strcasecmp(n.c_str() + n.size() - 4, ".syx"))) files.push_back(n);
+    }
+    closedir(d);
+    std::sort(files.begin(), files.end());
+    for (const auto &n : files) {
+        synthLib::SysexBuffer buf;
+        if (!synthLib::MidiToSysex::readFile(buf, (dir + "/" + n).c_str())) continue;
+        synthLib::SysexBufferList msgs;
+        synthLib::MidiToSysex::splitMultipleSysex(msgs, buf, false);
+        std::vector<std::vector<uint8_t>> singles;
+        for (auto &m : msgs)
+            if (m.size() == (size_t)kDumpLen && m[0] == 0xf0 && m[1] == 0x3e && m[2] == 0x10 && m[4] == (uint8_t)mqLib::SysexCommand::SingleDump && m.back() == 0xf7)
+                singles.emplace_back(m.begin(), m.end());
+        if (singles.empty()) continue;
+        std::string stem = n.substr(0, n.size() - 4);
+        for (auto &c : stem) c = (char)toupper((unsigned char)(c == '_' ? ' ' : c));
+        for (const char *drop : {"MICROQ ", "MQ "}) if (stem.rfind(drop, 0) == 0) stem.erase(0, strlen(drop));
+        if (stem.size() > 15) stem.resize(15);
+        const int nb = (int)(singles.size() + VV_PER_BANK - 1) / VV_PER_BANK;
+        for (int k = 0; k < nb && (int)in->fbanks.size() + VV_BANKS < kMaxBanks; k++) {
+            Inst::FileBank fb;
+            fb.name = nb > 1 ? stem + " " + (char)('A' + k) : stem;
+            fb.sounds.assign(singles.begin() + k * VV_PER_BANK, singles.begin() + std::min<size_t>(singles.size(), (size_t)(k + 1) * VV_PER_BANK));
+            in->fbanks.push_back(std::move(fb));
+        }
+    }
+    xlog("[banks] %zu file banks", in->fbanks.size());
+}
 
 std::unordered_map<std::string, int> &mq_index() {
     static std::unordered_map<std::string, int> m = [] {
@@ -231,7 +292,7 @@ Dump as_edit_buffer(Dump d) {
     return d;
 }
 
-void name_of(const Dump &d, char *out) {
+void name_of(const std::vector<uint8_t> &d, char *out) {
     for (int i = 0; i < kNameLen; i++) out[i] = (char)(d[kNameOff + i] >= 32 && d[kNameOff + i] < 127 ? d[kNameOff + i] : ' ');
     out[kNameLen] = 0;
     for (int i = kNameLen - 1; i >= 0 && out[i] == ' '; i--) out[i] = 0;
@@ -434,7 +495,7 @@ void emu_main(Inst *in) {
         dev.reset(new mqLib::Device(p));          // boots the firmware (runs until the 68k reports boot done)
         if (!dev->isValid()) throw std::runtime_error("the microQ firmware did not start");
         plugin.reset(new synthLib::Plugin(dev.get(), [](synthLib::Device *d) { return d; }));
-        plugin->setMidiClockEnabled(false);
+        plugin->setMidiClockEnabled(true);
         plugin->setHostSamplerate((float)kRate, 0.0f);
         plugin->setBlockSize(kBlock);
     } catch (const std::exception &e) {
@@ -494,9 +555,23 @@ void emu_main(Inst *in) {
                 break;
             case C_PRESET: {
                 memset(dirty, 0, sizeof dirty);
-                ask_for_sound(c.a, c.b);
+                if (c.a < VV_BANKS) ask_for_sound(c.a, c.b);
                 Dump d;
-                { std::lock_guard<std::mutex> l(in->sm); d = in->rom_dump[c.a][c.b]; }
+                {
+                    std::lock_guard<std::mutex> l(in->sm);
+                    if (c.a < VV_BANKS) d = in->rom_dump[c.a][c.b];
+                    else if (c.b < bank_size(in, c.a)) d = in->fbanks[c.a - VV_BANKS].sounds[c.b];
+                }
+                if (c.a >= VV_BANKS) {                        // a sound from a file: straight into the edit buffer
+                    want.active = false;
+                    if (d.size() == (size_t)kDumpLen) {
+                        const Dump eb = as_edit_buffer(d);
+                        plugin->addMidiEvent(dump_event(eb));
+                        apply_loaded(in, eb, c.a, c.b);
+                        xlog("[sound] %d/%d \"%s\" (file)", c.a, c.b, in->cur_name);
+                    }
+                    break;
+                }
                 if (d.size() == (size_t)kDumpLen) {           // the ROM single as the firmware now has it in its edit buffer
                     want.active = false;
                     apply_loaded(in, as_edit_buffer(d), c.a, c.b);
@@ -540,7 +615,14 @@ void emu_main(Inst *in) {
             if ((want.shown_at >= 0 && (want.waited - want.shown_at) % 512 == 24) || want.waited % 1024 == 0) plugin->addMidiEvent(request_single(kEditBuf, 0));
         }
 
-        plugin->process(inputs, outputs, kBlock, 0.0f, 0.0f, false, false);
+        {
+            /* MPC's position, moved forward by what the ring holds: this block is heard that much later */
+            const double bpm = in->host_bpm.load(), ppq = in->host_ppq.load();
+            const uint32_t ahead = in->wr.load(std::memory_order_relaxed) - in->rd.load(std::memory_order_relaxed);
+            const bool sync = bpm > 0.0 && ppq >= 0.0 && in->ready;
+            const double my_ppq = sync ? ppq + ahead * bpm / 60.0 / kRate : 0.0;
+            plugin->process(inputs, outputs, kBlock, sync ? (float)bpm : 0.0f, (float)my_ppq, sync && in->host_playing.load(), sync);
+        }
         block_no++;
 
         midiOut.clear();
@@ -730,6 +812,7 @@ void *eng_create(const char *dir) {
         in->raw[p.idx].store(field_set(p, in->raw[p.idx].load(), p.def));
     }
     fav_load(in);
+    scan_banks(in);
     in->th = std::thread(emu_main, in);
     return in;
 }
@@ -744,8 +827,12 @@ void eng_destroy(void *p) {
 }
 
 void select_sound(Inst *in, int bank, int prog) {
-    bank = clampi(bank, 0, VV_BANKS - 1);
-    prog = clampi(prog, 0, VV_PER_BANK - 1);
+    if (in->failed) { bank = clampi(bank, 0, kMaxBanks - 1); prog = clampi(prog, 0, 127); }       // no ROM: keep what was asked
+    else {
+        bank = clampi(bank, 0, bank_count(in) - 1);
+        prog = clampi(prog, 0, std::max(0, bank_size(in, bank) - 1));
+    }
+    in->bank_page = bank / kBankTiles;
     xlog("[sound] select bank %d preset %d", bank, prog);
     in->bank = bank;
     in->preset = prog;
@@ -763,9 +850,9 @@ void eng_midi(void *p, const uint8_t *msg, int len) {
     Inst *in = (Inst *)p;
     if (!in || len < 1 || len > 3 || msg[0] < 0x80 || msg[0] >= 0xf0) return;
     const uint8_t st = msg[0] & 0xf0;
-    if (st == 0xc0 && len >= 2) { if (msg[1] < VV_PER_BANK) select_sound(in, in->bank, msg[1]); return; }
+    if (st == 0xc0 && len >= 2) { if (msg[1] < bank_size(in, in->bank)) select_sound(in, in->bank, msg[1]); return; }
     if (st == 0xb0 && len >= 3 && (msg[1] == 0 || msg[1] == 32)) {     // bank select A/B/C: takes effect with the next program change
-        if (msg[1] == 0 && msg[2] < VV_BANKS) in->bank = msg[2];
+        if (msg[1] == 0 && msg[2] < bank_count(in)) in->bank = msg[2];
         return;
     }
     Cmd c;
@@ -787,7 +874,7 @@ int slot_key(const char *key, const char *prefix, int max, bool *on) {
     return 0;
 }
 
-int pages() { return (VV_PER_BANK + VV_PATCH_TILES - 1) / VV_PATCH_TILES; }
+int pages(Inst *in) { return std::max(1, (bank_size(in, in->bank) + VV_PATCH_TILES - 1) / VV_PATCH_TILES); }
 int hexval(char c) { return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1; }
 
 void restore_state(Inst *in, const char *s) {
@@ -795,8 +882,8 @@ void restore_state(Inst *in, const char *s) {
         const char *q = strstr(s, k);
         return q ? atoi(q + strlen(k)) : def;
     };
-    in->bank = clampi(num("\"bank\":", 0), 0, VV_BANKS - 1);
-    in->preset = clampi(num("\"preset\":", 0), 0, VV_PER_BANK - 1);
+    in->bank = clampi(num("\"bank\":", 0), 0, bank_count(in) - 1);
+    in->preset = clampi(num("\"preset\":", 0), 0, std::max(0, bank_size(in, in->bank) - 1));
     in->page = in->preset / VV_PATCH_TILES;
     in->gain = clampi(num("\"gain\":", 100), 10, 400);
     const char *h = strstr(s, "\"single\":\"");
@@ -839,21 +926,29 @@ void eng_set(void *p, const char *key, const char *val) {
     bool on = false;
     int n;
     const bool press = atoi(val) != 0;
-    if ((n = slot_key(key, "bank_slot_", VV_BANKS, &on)) && !on) { if (press) select_sound(in, n - 1, in->preset); return; }
+    if ((n = slot_key(key, "bank_slot_", kBankTiles, &on)) && !on) {
+        const int b = in->bank_page * kBankTiles + n - 1;
+        if (press && b < bank_count(in)) select_sound(in, b, 0);
+        return;
+    }
+    if (!strcmp(key, "bank_page_prev")) { if (press && in->bank_page > 0) { in->bank_page--; in->bump(); } return; }
+    if (!strcmp(key, "bank_page_next")) { if (press && (in->bank_page + 1) * kBankTiles < bank_count(in)) { in->bank_page++; in->bump(); } return; }
     if ((n = slot_key(key, "patch_slot_", VV_PATCH_TILES, &on)) && !on) {
-        if (press && in->page * VV_PATCH_TILES + n - 1 < VV_PER_BANK) select_sound(in, in->bank, in->page * VV_PATCH_TILES + n - 1);
+        if (press && in->page * VV_PATCH_TILES + n - 1 < bank_size(in, in->bank)) select_sound(in, in->bank, in->page * VV_PATCH_TILES + n - 1);
         return;
     }
     if (!strcmp(key, "patch_page_prev")) { if (press && in->page > 0) { in->page--; in->bump(); } return; }
-    if (!strcmp(key, "patch_page_next")) { if (press && in->page + 1 < pages()) { in->page++; in->bump(); } return; }
+    if (!strcmp(key, "patch_page_next")) { if (press && in->page + 1 < pages(in)) { in->page++; in->bump(); } return; }
     if (!strcmp(key, "preset")) { select_sound(in, in->bank, atoi(val)); return; }
-    if (!strcmp(key, "bank_index")) { select_sound(in, atoi(val), in->preset); return; }
+    if (!strcmp(key, "bank_index")) { select_sound(in, atoi(val), 0); return; }
     if (!strcmp(key, "preset_next") || !strcmp(key, "preset_prev")) {
-        if (press) select_sound(in, in->bank, (in->preset + (!strcmp(key, "preset_next") ? 1 : VV_PER_BANK - 1)) % VV_PER_BANK);
+        const int np = std::max(1, bank_size(in, in->bank));
+        if (press) select_sound(in, in->bank, (in->preset + (!strcmp(key, "preset_next") ? 1 : np - 1)) % np);
         return;
     }
     if (!strcmp(key, "bank_next") || !strcmp(key, "bank_prev")) {
-        if (press) select_sound(in, (in->bank + (!strcmp(key, "bank_next") ? 1 : VV_BANKS - 1)) % VV_BANKS, in->preset);
+        const int nb = bank_count(in);
+        if (press) select_sound(in, (in->bank + (!strcmp(key, "bank_next") ? 1 : nb - 1)) % nb, 0);
         return;
     }
     if (!strcmp(key, "all_notes_off")) { if (press) { Cmd c; c.type = C_PANIC; in->push(std::move(c)); } return; }
@@ -887,28 +982,29 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     if (!in || !key || n < 2) return -1;
     bool on = false;
     int k;
-    static const char *const kBankNames[VV_BANKS] = {"BANK A", "BANK B", "BANK C"};
-    if ((k = slot_key(key, "bank_slot_", VV_BANKS, &on))) {
-        if (on) return put(buf, n, "%d", k - 1 == in->bank ? 1 : 0);
-        return put(buf, n, "%s", kBankNames[k - 1]);
+    if ((k = slot_key(key, "bank_slot_", kBankTiles, &on))) {
+        const int b = in->bank_page * kBankTiles + k - 1;
+        if (on) return put(buf, n, "%d", b == in->bank ? 1 : 0);
+        return put(buf, n, "%s", b < bank_count(in) ? bank_title(in, b).c_str() : "");
     }
+    if (!strcmp(key, "bank_page_text")) return put(buf, n, "%d / %d", in->bank_page + 1, (bank_count(in) + kBankTiles - 1) / kBankTiles);
     if ((k = slot_key(key, "patch_slot_", VV_PATCH_TILES, &on))) {
         const int idx = in->page * VV_PATCH_TILES + k - 1;
         if (on) return put(buf, n, "%d", idx == in->preset ? 1 : 0);
-        if (idx >= VV_PER_BANK) return put(buf, n, "%s", "");
+        if (idx >= bank_size(in, in->bank)) return put(buf, n, "%s", "");
         std::lock_guard<std::mutex> l(in->sm);
-        const int b = in->bank;
-        return put(buf, n, "%03d %s", idx + 1, in->have[b][idx] ? in->names[b][idx] : "");
+        return put(buf, n, "%03d %s", idx + 1, sound_name(in, in->bank, idx).c_str());
     }
-    if (!strcmp(key, "patch_page_text")) return put(buf, n, "PAGE %d / %d", in->page + 1, pages());
+    if (!strcmp(key, "patch_page_text")) return put(buf, n, "PAGE %d / %d", in->page + 1, pages(in));
     if (!strcmp(key, "preset")) return put(buf, n, "%d", in->preset.load());
     if (!strcmp(key, "bank_index")) return put(buf, n, "%d", in->bank.load());
-    if (!strcmp(key, "bank_name")) return put(buf, n, "%s", kBankNames[clampi(in->bank, 0, VV_BANKS - 1)]);
+    if (!strcmp(key, "bank_name")) return put(buf, n, "%s", in->bank < bank_count(in) ? bank_title(in, in->bank).c_str() : "-");
     if (!strcmp(key, "preset_name")) {
         std::lock_guard<std::mutex> l(in->sm);
         const int b = in->bank, pr = in->preset;
-        const char *nm = in->cur_name[0] ? in->cur_name : (in->have[b][pr] ? in->names[b][pr] : "");
-        return put(buf, n, "%c%03d %s", 'A' + b, pr + 1, nm);
+        const std::string nm = in->cur_name[0] ? std::string(in->cur_name) : sound_name(in, b, pr);
+        if (b < VV_BANKS) return put(buf, n, "%c%03d %s", 'A' + b, pr + 1, nm.c_str());
+        return put(buf, n, "%03d %s", pr + 1, nm.c_str());
     }
     if (!strcmp(key, "rom_name")) { std::lock_guard<std::mutex> l(in->sm); return put(buf, n, "%s", in->rom_name[0] ? in->rom_name : "-"); }
     if (!strcmp(key, "loading_status")) {
@@ -995,7 +1091,16 @@ void eng_render(void *p, int16_t *out, int frames) {
     }
 }
 
-const mpc_engine_t engine = {eng_create, eng_destroy, eng_midi, eng_set, eng_get, eng_render, nullptr, nullptr};
+void eng_song_pos(void *p, double ppq, double bpm, int playing, int frames) {
+    (void)frames;
+    Inst *in = (Inst *)p;
+    if (!in) return;
+    in->host_ppq = ppq;
+    in->host_bpm = bpm;
+    in->host_playing = playing != 0;
+}
+
+const mpc_engine_t engine = {eng_create, eng_destroy, eng_midi, eng_set, eng_get, eng_render, nullptr, eng_song_pos};
 
 }  // namespace
 

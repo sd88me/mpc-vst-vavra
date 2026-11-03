@@ -107,8 +107,8 @@ def add(p, sec):
 
 
 # ---- engine keys first (VST index = order; never reorder)
-add(dict(key="bank_index", name="BANK", min=0, max=N_BANKS - 1, default=0, display="int"), "Browse")
-add(dict(key="preset", name="PRESET", min=0, max=N_PER_BANK - 1, default=0, display="int"), "Browse")
+add(dict(key="bank_index", name="BANK", min=0, max=63, default=0, display="int"), "Browse")
+add(dict(key="preset", name="PRESET", min=0, max=127, default=0, display="int"), "Browse")
 add(dict(key="bank_name", name="BANK NAME", min=0, max=0, default=0, display="string", poll=True), "Browse")
 add(dict(key="preset_name", name="PRESET NAME", min=0, max=0, default=0, display="string", poll=True), "Browse")
 add(dict(key="bank_prev", name="BANK -", min=0, max=1, default=0, momentary=True), "Browse")
@@ -163,6 +163,12 @@ for r in rows:
     elif lr is not None and len(lr[0]) > 1:
         labels, raws = lr
         di = raws.index(dflt) if dflt in raws else 0
+        if tt == "arpStep":
+            labels = ["Note", "Pause", "Previous", "First", "Last", "First+Last", "Chord", "Random"][:len(labels)]
+        if tt == "arpTiming":
+            labels = [l.replace("|", "On Beat") for l in labels]
+        if tt == "arpStepLength":
+            labels = [l.replace("As Note Length", "Note") for l in labels]
         if len(set(labels)) != len(labels):
             labels = [l if labels.count(l) == 1 else "%s %d" % (l, i + 1) for i, l in enumerate(labels)]
         p = dict(key=name, name=nice(name), options=labels, default=labels[di])
@@ -226,6 +232,12 @@ add(dict(key="fav_delete", name="DEL FAV", min=0, max=1, default=0, momentary=Tr
 add(dict(key="fav_text", name="FAVOURITES", min=0, max=0, default=0, display="string", poll=True), "Banks")
 for i in range(26, N_PATCH_TILES + 1):                # appended later (0.1.0 had 25 tiles)
     add(dict(key="patch_slot_%d" % i, name="PATCH %d" % i, min=0, max=1, default=0, momentary=True, display="string", poll=True), "Banks")
+# sound-set files in banks/: more bank tiles, paged (appended)
+for i in range(4, 11):
+    add(dict(key="bank_slot_%d" % i, name="BANK %d" % i, min=0, max=1, default=0, momentary=True, display="string", poll=True), "Banks")
+add(dict(key="bank_page_text", name="BANK PAGE", min=0, max=0, default=0, display="string", poll=True), "Banks")
+add(dict(key="bank_page_prev", name="BANK PAGE -", min=0, max=1, default=0, momentary=True), "Banks")
+add(dict(key="bank_page_next", name="BANK PAGE +", min=0, max=1, default=0, momentary=True), "Banks")
 
 order = ["Browse", "Banks", "System"] + [s for s, _ in SECTIONS] + ["Other"]
 sections = [{"label": s, "keys": keys_in[s]} for s in order if s in keys_in]

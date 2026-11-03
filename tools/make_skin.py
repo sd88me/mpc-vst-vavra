@@ -13,7 +13,7 @@ PARTS = os.path.join(ROOT, "skin", "parts")
 FONT = os.path.join(OUT, "fonts")
 Y86, W, H = 86, 1280, 628
 # LOOK (env VAVRA_LOOK): "rings" = gearmulator's mqDefault; "yellow" = the first microQ's panel; "navy" = the later dark blue one
-LOOK = os.environ.get("VAVRA_LOOK", "rings")
+LOOK = os.environ.get("VAVRA_LOOK", "yellow")
 PAL = {
     #          panel fill        title bar       body             label           title text      dim             bg (None: rings)
     "rings":  ((207, 151, 46), (207, 151, 46), (112, 112, 112), (255, 218, 148), (24, 20, 12), (210, 196, 170), None),
@@ -54,7 +54,21 @@ class Page:
         self.d = ImageDraw.Draw(self.im)
         self.widgets = []
 
-    def panel(self, x, y, w, h, title=None):
+    def chip(self, cx, y, text, size=17, font="LiberationSans-Bold.ttf"):
+        """a label on a contrast chip (the hardware looks), centred at cx, top at y"""
+        f = F(size, font)
+        tw = int(self.d.textlength(text, font=f))
+        self.d.rounded_rectangle((cx - tw // 2 - 9, y - 3, cx + tw // 2 + 9, y + size + 4), (size + 7) // 2, fill=GOLD)
+        self.d.text((cx, y), text, font=f, fill=INK, anchor="ma")
+
+    def heading(self, cx, y, text):
+        """a heading inside a panel body (SLOT 1, OSC 1 ...)"""
+        if FLAT is None:
+            self.d.text((cx, y), text, font=F(18, TITLE), fill=SUB, anchor="ma")
+        else:
+            self.chip(cx, y, text, 17, TITLE)
+
+    def panel(self, x, y, w, h, title=None, solid=False):
         """an mqDefault section: gold frame, darker gold title bar with a dark italic title, grey body"""
         if FLAT is None:
             self.d.rounded_rectangle((x, y, x + w, y + h), 6, fill=GOLD)
@@ -62,15 +76,18 @@ class Page:
             if title:
                 self.d.text((x + 12, y + 4), title, font=F(21, TITLE), fill=INK)
             return
-        # the microQ panel: a thin rounded frame, the section name in a filled chip like "Oscillators" on the hardware
-        self.d.rounded_rectangle((x, y, x + w, y + h), 12, outline=GOLD, width=3)
+        # the microQ panel: a rounded frame in the contrast colour with a full-width title bar (solid: filled, for the display areas)
+        self.d.rounded_rectangle((x, y, x + w, y + h), 12, outline=GOLD, width=3, fill=GOLD if solid else None)
         if title:
-            tw = int(self.d.textlength(title, font=F(19, TITLE)))
-            self.d.rounded_rectangle((x, y, x + tw + 30, y + 28), 10, fill=GOLD)
-            self.d.text((x + 14, y + 3), title, font=F(19, TITLE), fill=INK)
+            self.d.rounded_rectangle((x, y, x + w, y + 30), 12, fill=GOLD)
+            self.d.rectangle((x, y + 14, x + w, y + 30), fill=GOLD)
+            self.d.text((x + 14, y + 4), title, font=F(19, TITLE), fill=INK)
 
-    def label(self, cx, y, s, size=17, color=CREAM):
-        self.d.text((cx, y), s, font=F(size), fill=color, anchor="ma")
+    def label(self, cx, y, s, size=17, color=None):
+        if FLAT is not None and color is None:
+            self.chip(cx, y, s, size - 1)
+            return
+        self.d.text((cx, y), s, font=F(size), fill=color or CREAM, anchor="ma")
 
     def ctl(self, cx, cy, key, label, w=None):
         """the right live widget for the parameter: knob (a number), toggle (two options), popup (more)"""
@@ -162,7 +179,7 @@ def header(p):
         p.d.rounded_rectangle((280, 8, 1272, 108), 6, fill=GOLD)
         p.d.rectangle((283, 38, 1269, 105), fill=BODY)
     else:
-        p.d.rounded_rectangle((280, 8, 1272, 108), 12, outline=GOLD, width=3)
+        p.d.rounded_rectangle((280, 8, 1272, 108), 12, outline=GOLD, width=3, fill=GOLD)
         for x0, t in ((282, "BANK"), (602, "SOUND")):
             tw = int(p.d.textlength(t, font=F(19, TITLE)))
             p.d.rounded_rectangle((x0, 8, x0 + tw + 24, 34), 10, fill=GOLD)
@@ -176,11 +193,11 @@ def header(p):
 QUICK = ["F1Cutoff", "F1Resonance", "F1EnvMod", "FilterEnvDecay", "AmpEnvAttack", "AmpEnvRelease", "Lfo1Speed", "FX2Mix"]
 p = Page("MAIN", QUICK + ["gain"])
 header(p)
-p.panel(8, 120, 760, 262, "LCD")
+p.panel(8, 120, 760, 262, "LCD", solid=True)
 p.readout(388, 200, "lcd1", "", 620)
 p.readout(388, 262, "lcd2", "", 620)
-p.label(388, 316, "THE MICROQ'S OWN DISPLAY", 14, DIM)
-p.panel(780, 120, 492, 262, "ENGINE")
+p.label(388, 316, "THE MICROQ'S OWN DISPLAY", 14, DIM if FLAT is None else INK)
+p.panel(780, 120, 492, 262, "ENGINE", solid=True)
 p.readout(1026, 200, "loading_status", "", 460, "plain")
 p.readout(1026, 262, "engine_stats", "", 460, "plain")
 p.button(920, 334, "all_notes_off", "PANIC")
@@ -190,19 +207,17 @@ p.row(8, 1272, 520, [("F1Cutoff", "Cutoff 1"), ("F1Resonance", "Reso 1"), ("F1En
                      ("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix"), ("gain", "Gain %")])
 p.done()
 
-# ---------------------------------------------------------------- BANKS
+# ---------------------------------------------------------------- BANKS (A/B/C from the ROM, then the sound-set files in banks/)
 p = Page("BANKS", ["preset", "bank_index"])
 p.panel(8, 8, 250, 612, "BANKS")
 p.panel(270, 8, 1002, 612, "SOUNDS")
-p.widgets.append('list x=22 y=%d w=222 h=160 cols=1 rows=3 gap=6 th=48 key=bank_slot' % (54 + Y86))
-p.d.text((133, 300), "FAVOURITES", font=F(18, TITLE), fill=SUB, anchor="ma")
-p.widgets.append('button cx=133 cy=%d w=200 h=44 label="+FAV" key=fav_save' % (370 + Y86))
-p.widgets.append('button cx=133 cy=%d w=200 h=44 label="-FAV" key=fav_delete' % (430 + Y86))
-p.readout(133, 500, "fav_text", "", 222, "plain")
-p.label(133, 540, "PICK THEM IN MPC'S", 13, DIM)
-p.label(133, 560, "PRESET MENU", 13, DIM)
-p.widgets.append('stepper w=560 h=40 cx=600 cy=%d label="" key=preset get=preset_name prev=preset_prev next=preset_next style=dotmatrix persistent=1' % (66 + Y86))
-p.widgets.append('stepper w=280 h=40 cx=1110 cy=%d label="" key=patch_page_text get=patch_page_text prev=patch_page_prev next=patch_page_next style=dotmatrix' % (66 + Y86))
+p.widgets.append('list x=20 y=%d w=226 h=454 cols=1 rows=10 gap=6 th=40 key=bank_slot' % (46 + Y86))
+p.widgets.append('stepper w=226 h=40 cx=133 cy=%d label="" key=bank_page_text get=bank_page_text prev=bank_page_prev next=bank_page_next style=dotmatrix' % (540 + Y86))
+p.readout(133, 592, "fav_text", "", 226, "plain")
+p.widgets.append('stepper w=480 h=40 cx=530 cy=%d label="" key=preset get=preset_name prev=preset_prev next=preset_next style=dotmatrix persistent=1' % (66 + Y86))
+p.widgets.append('button cx=836 cy=%d w=96 h=40 label="+FAV" key=fav_save' % (66 + Y86))
+p.widgets.append('button cx=942 cy=%d w=96 h=40 label="-FAV" key=fav_delete' % (66 + Y86))
+p.widgets.append('stepper w=220 h=40 cx=1146 cy=%d label="" key=patch_page_text get=patch_page_text prev=patch_page_prev next=patch_page_next style=dotmatrix' % (66 + Y86))
 p.widgets.append('list x=284 y=%d w=974 h=500 cols=3 rows=10 gap=6 th=44 key=patch_slot order=cols' % (104 + Y86))
 p.done()
 
@@ -237,7 +252,7 @@ p.panel(8, 320, 1264, 300, "MIXER")
 for i, (lv, bl, nm) in enumerate([("O1Level", "O1Balance", "Osc 1"), ("O2Level", "O2Balance", "Osc 2"), ("O3Level", "O3Balance", "Osc 3"),
                                   ("NoiseLevel", "NoiseBalance", "Noise/Ext"), ("RingModLevel", "RingModBalance", "Ring Mod")]):
     cx = 8 + int(1264 / 5 * (i + 0.5))
-    p.d.text((cx, 356), nm.upper(), font=F(18, TITLE), fill=SUB, anchor="ma")
+    p.heading(cx, 356, nm.upper())
     p.small_knob(cx - 60, 470, lv, "Level")
     p.small_knob(cx + 60, 470, bl, "F1 < > F2")
 p.label(640, 560, "NOISE / EXTERNAL INPUT MODE: AMP & GLIDE PAGE", 13, DIM)
@@ -316,7 +331,7 @@ def slots(name, kind, title, n):
     for i in range(n):
         c, r = i % 4, i // 4
         cx, y = 8 + int(1264 / 4 * (c + 0.5)), 50 + r * 290
-        p.d.text((cx, y - 6), "SLOT %d" % (i + 1), font=F(18, TITLE), fill=SUB, anchor="ma")
+        p.heading(cx, y - 6, "SLOT %d" % (i + 1))
         p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, y + 48 + Y86, (pre % (i + 1)) + "Source"))
         p.label(cx, y + 74, "TO", 13, DIM)
         p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, y + 112 + Y86, (pre % (i + 1)) + "Destination"))
@@ -335,7 +350,7 @@ p.panel(8, 8, 1264, 420, "MODIFIERS")
 for i in range(4):
     m = "Mod%d" % (i + 1)
     cx = 8 + int(1264 / 4 * (i + 0.5))
-    p.d.text((cx, 46), "MODIFIER %d" % (i + 1), font=F(18, TITLE), fill=SUB, anchor="ma")
+    p.heading(cx, 46, "MODIFIER %d" % (i + 1))
     p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, 104 + Y86, m + "Source1"))
     p.widgets.append('popup cx=%d cy=%d w=200 h=34 label="" key=%s' % (cx, 164 + Y86, m + "Operator"))
     p.widgets.append('popup cx=%d cy=%d w=270 h=34 label="" key=%s cw=130' % (cx, 224 + Y86, m + "Source2"))
@@ -362,23 +377,42 @@ for n, y in ((1, 8), (2, 320)):
         p.small_knob(250 + int(1012 / 7 * (c + 0.5)), y + 92 + r * 128, "fx%d_p%d" % (n, i + 1), live_label="fx%d_l%d" % (n, i + 1))
 p.done()
 
-# ---------------------------------------------------------------- ARP
+# ---------------------------------------------------------------- ARP, and its 16-step user pattern
 p = Page("ARP", ["Tempo", "ArpClock", "ArpLength", "ArpTFactor", "ArpOctaveRange", "ArpMaxNotes", "ArpPatternLength", "-"])
 p.panel(8, 8, 1264, 300, "ARPEGGIATOR")
-p.row(8, 1272, 90, [("ArpMode", "Mode", 150), ("ArpPattern", "Pattern", 150), ("ArpDirection", "Direction", 150), ("ArpSortOrder", "Order", 170),
-                    ("ArpVeloMode", "Velocity", 170), ("ArpSameNoteOverlap", "Note Overlap"), ("ArpPatternReset", "Pattern Reset")])
-p.row(8, 1272, 230, [("Tempo", "Tempo", 130), ("ArpClock", "Clock", 130), ("ArpLength", "Length", 130), ("ArpTFactor", "Timing Factor"),
+p.row(8, 1272, 104, [("ArpMode", "Mode", 150), ("ArpPattern", "Pattern", 150), ("ArpDirection", "Direction", 150), ("ArpSortOrder", "Order", 170),
+                     ("ArpVeloMode", "Velocity", 170), ("ArpSameNoteOverlap", "Note Overlap"), ("ArpPatternReset", "Pattern Reset")])
+p.row(8, 1272, 228, [("Tempo", "Tempo", 130), ("ArpClock", "Clock", 130), ("ArpLength", "Length", 130), ("ArpTFactor", "Timing Factor"),
                      ("ArpOctaveRange", "Range"), ("ArpMaxNotes", "Max Notes"), ("ArpPatternLength", "User Length")])
-p.panel(8, 320, 1264, 300, "NOTES")
-p.label(640, 400, "THE ARPEGGIATOR RUNS AT THE SOUND'S TEMPO (NOT MPC'S CLOCK).", 18)
-p.label(640, 440, "THE 16-STEP USER PATTERN IS PART OF EACH SOUND; IT IS NOT EDITED HERE YET.", 18)
-p.label(640, 480, "PATTERN USER PLAYS THE SOUND'S OWN STEPS, 1-15 ARE THE MICROQ'S PRESETS.", 18)
+p.panel(8, 320, 1264, 300, "TEMPO")
+p.label(640, 392, "WITH MPC PLAYING, THE ARPEGGIATOR AND CLOCKED LFOS FOLLOW MPC'S TEMPO.", 17)
+p.label(640, 432, "STOPPED, THEY RUN AT THE SOUND'S OWN TEMPO.", 17)
+p.label(640, 492, "PATTERN \"USER\" PLAYS THE 16 STEPS ON THE ARP STEPS PAGES.", 17)
 p.done()
+
+ROWS = [("Step", "Step"), ("Glide", "Glide"), ("Accent", "Accent"), ("Length", "Length"), ("Timing", "Timing")]
+for first in (0, 8):
+    name = "ARP STEPS %d-%d" % (first + 1, first + 8)
+    p = Page(name, ["Arp%02dAccent" % (first + i) for i in range(8)] + ["Arp%02dLength" % (first + i) for i in range(8)])
+    p.panel(8, 8, 1264, 612, "USER PATTERN STEPS %d-%d" % (first + 1, first + 8))
+    for r, (k, lab) in enumerate(ROWS):
+        y = 100 + r * 112
+        p.heading(80, y - 10, lab.upper())
+        for c in range(8):
+            cx = 180 + int(1080 / 8 * (c + 0.5))
+            key = "Arp%02d%s" % (first + c, k)
+            if r == 0:
+                p.heading(cx, 46, "%d" % (first + c + 1))
+            if k == "Glide":
+                p.widgets.append('toggle cx=%d cy=%d label="" key=%s ns=0' % (cx, y + Y86, key))
+            else:
+                p.widgets.append('popup cx=%d cy=%d w=124 h=34 label="" key=%s' % (cx, y + Y86, key))
+    p.done()
 
 THEMES = {
     "yellow": dict(theme_bg="f6d628", theme_panel="f6d628", theme_line="1c3482", theme_ink="16286f", theme_ink_dim="3c4c82", theme_accent="ffffff",
-                   theme_accent_hi="ffffff", theme_lcd="1c3482", theme_box="1c3482", theme_seg_active="1c3482", theme_seg_inactive="d8bc1c",
-                   theme_seg_active_tx="ffffff", theme_btn_bg="1c3482", theme_btn_text="ffffff", theme_btn_text_plain="ffffff", theme_display_bezel="1c3482",
+                   theme_accent_hi="ffffff", theme_lcd="0e1c52", theme_box="1c3482", theme_seg_active="1c3482", theme_seg_inactive="d8bc1c",
+                   theme_seg_active_tx="ffffff", theme_btn_bg="3c5cc0", theme_btn_text="ffffff", theme_btn_text_plain="ffffff", theme_display_bezel="1c3482",
                    theme_tile_on="c8202a"),
     "navy": dict(theme_bg="222e4e", theme_panel="222e4e", theme_line="bac6de", theme_ink="ecf0fa", theme_ink_dim="96a4c4", theme_accent="ecf0fa",
                  theme_accent_hi="ffffff", theme_lcd="141c32", theme_box="141c32", theme_seg_active="bac6de", theme_seg_inactive="141c32",
