@@ -1,0 +1,6 @@
+build/
+vst/build/
+vst/preview/
+dist/
+data/
+*.wav

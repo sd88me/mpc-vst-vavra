@@ -1,0 +1,36 @@
+{
+  "name": "Vavra",
+  "vendor": "sd88me",
+  "uid": "VavQ",
+  "version": 1000,
+  "targets": [
+    "aarch64"
+  ],
+  "so": "vavra.so",
+  "programs": {"param": "favourite"},
+  "params": "params.json",
+  "art": "html",
+  "defines": {
+    "HAS_DISPLAY_REV": 1,
+    "DISPLAY_REV_NO_UPDATE": 1,
+    "MODULE_SUBDIR": "\"vavra\"",
+    "MODULE_DIR": "\"/sdcard/vst/vavra\"",
+    "PARAM_TEXT_MAX": 64
+  },
+  "build": {
+    "root": "..",
+    "sources": [],
+    "cflags": [],
+    "libs": [
+      "vst/build/engine/libvavra_all.a",
+      "-Wl,--exclude-libs,ALL",
+      "-static-libstdc++",
+      "-static-libgcc",
+      "-lstdc++",
+      "-lm",
+      "-ldl"
+    ]
+  },
+  "layout": "layout.conf",
+  "tile": "images/tile.png"
+}

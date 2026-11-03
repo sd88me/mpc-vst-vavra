@@ -1,0 +1,3 @@
+Put your own Waldorf microQ ROM in this folder: a 512 kB flash dump (.bin, as read from the chip or byte-swapped, OS 2.23),
+or the microQ OS 2.23 update file mq_2_23.mid. The OS update file has no factory sounds: the sound banks then start empty.
+No ROM is included with Vavra, and none may be shared.

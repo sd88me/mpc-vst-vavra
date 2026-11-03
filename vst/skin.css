@@ -1,0 +1,9 @@
+/* JE-8086: the look of gearmulator's jeTrancy skin (theusualsuspects): blue chassis, black panels, orange titles and values.
+   Colours come from the layout's theme_* lines; live text uses Liberation Sans (SIL OFL 1.1, vst/fonts/). */
+@font-face { font-family: "Liberation Sans"; font-weight: 700; src: url("fonts/LiberationSans-Bold.ttf"); }
+:root { --font: "Liberation Sans", "Titillium Web", sans-serif; --title-font: "Liberation Sans", sans-serif;
+        --title-size: 20px; --label-size: 15px; --radius: 4px; --sheen: 0.03; --button-size: 16px; --seg-size: 15px; }
+text { font-weight: 700; }
+.frame-title, .td3 .frame-title { fill: #ff6a14; letter-spacing: 0.08em; }
+.frame-border { fill: rgba(0, 0, 0, 0.0); stroke: none; }
+.frame-rule { display: none; }
