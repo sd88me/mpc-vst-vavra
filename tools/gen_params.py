@@ -259,10 +259,16 @@ with open(HDR, "w") as f:
                                                                   len(mapn) if mapn else 0, dflt, mk, sh))
     f.write("};\nstatic const int MQ_NUM_PARAMS = %d;\n" % len(MQ))
     f.write("#define VV_BANKS %d\n#define VV_PER_BANK %d\n#define VV_PATCH_TILES %d\n" % (N_BANKS, N_PER_BANK, N_PATCH_TILES))
+    # per effect type: the bytes it uses, packed onto the first knobs (offset from the FX's first byte, -1 = unused), and their names
     for fx in (1, 2):
-        f.write("static const char *const g_fx%d_labels[%d][14] = {\n" % (fx, len(FXLAB[fx])))
+        f.write("static const int8_t g_fx%d_byte[%d][14] = {\n" % (fx, len(FXLAB[fx])))
         for labs in FXLAB[fx]:
-            f.write("    {%s},\n" % ", ".join(json.dumps(l) for l in labs))
+            used = [i for i, l in enumerate(labs) if l]
+            f.write("    {%s},\n" % ", ".join(str(x) for x in used + [-1] * (14 - len(used))))
+        f.write("};\nstatic const char *const g_fx%d_labels[%d][14] = {\n" % (fx, len(FXLAB[fx])))
+        for labs in FXLAB[fx]:
+            used = [l for l in labs if l]
+            f.write("    {%s},\n" % ", ".join(json.dumps(l) for l in used + [""] * (14 - len(used))))
         f.write("};\n")
     f.write("#define FX1_TYPES %d\n#define FX2_TYPES %d\n" % (len(FXLAB[1]), len(FXLAB[2])))
 print("params.json: %d params (%d microQ single parameters), %d sections" % (len(params), len(MQ), len(sections)))

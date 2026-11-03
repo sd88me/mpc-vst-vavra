@@ -111,7 +111,7 @@ class Page:
     def small_knob(self, cx, cy, key, label=None, live_label=None, bw=118):
         """dense pages: a 70 px knob, its label in 15 px (or a live label: a readout of another key)"""
         if live_label:
-            self.widgets.append('readout cx=%d cy=%d w=140 h=20 label="" key=%s box=0 tsize=14 tcolor=%s tweight=700' % (cx, cy - 44 + Y86, live_label, LIVE))
+            self.widgets.append('readout cx=%d cy=%d w=140 h=22 label="" key=%s box=0 tsize=16 tcolor=%s tweight=700' % (cx, cy - 44 + Y86, live_label, LIVE))
         else:
             self.label(cx, cy - 58, label, 15)
         self.widgets.append('knob cx=%d cy=%d r=%d label="" key=%s ns=0 vs=18 vy=10 bw=%d' % (cx, cy + Y86, 30, key, bw))

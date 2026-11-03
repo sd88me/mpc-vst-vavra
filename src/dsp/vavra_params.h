@@ -327,25 +327,47 @@ static const int MQ_NUM_PARAMS = 315;
 #define VV_BANKS 3
 #define VV_PER_BANK 100
 #define VV_PATCH_TILES 30
+static const int8_t g_fx1_byte[7][14] = {
+    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 4, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 4, 5, 6, 8, -1, -1, -1, -1, -1, -1, -1, -1},
+    {1, 2, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 2, 3, 4, 5, 6, 7, -1, -1, -1, -1, -1, -1},
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+};
 static const char *const g_fx1_labels[7][14] = {
     {"", "", "", "", "", "", "", "", "", "", "", "", "", ""},
-    {"SPEED", "DEPTH", "", "DELAY", "", "", "", "", "", "", "", "", "", ""},
-    {"SPEED", "DEPTH", "", "", "FEEDBACK", "", "", "", "POLARITY", "", "", "", "", ""},
-    {"SPEED", "DEPTH", "", "", "FEEDBACK", "CENTER", "SPACING", "", "POLARITY", "", "", "", "", ""},
-    {"", "DRIVE", "POST GAIN", "", "", "CUTOFF", "", "", "", "", "", "", "", ""},
+    {"SPEED", "DEPTH", "DELAY", "", "", "", "", "", "", "", "", "", "", ""},
+    {"SPEED", "DEPTH", "FEEDBACK", "POLARITY", "", "", "", "", "", "", "", "", "", ""},
+    {"SPEED", "DEPTH", "FEEDBACK", "CENTER", "SPACING", "POLARITY", "", "", "", "", "", "", "", ""},
+    {"DRIVE", "POST GAIN", "CUTOFF", "", "", "", "", "", "", "", "", "", "", ""},
     {"CHORUS SPEED", "CHORUS DEPTH", "DELAY", "CHORUS DELAY L", "SAMPLE AND HOL", "OVERDRIVE", "RING MOD SOURC", "RING MOD LEVEL", "", "", "", "", "", ""},
     {"BANDS", "ANALYSIS SIGNA", "ANALYSIS FREQ ", "ANALYSIS FREQ ", "OFFSET S", "OFFSET HI", "BANDWIDTH", "RESONANCE", "ATTACK", "DECAY", "EQLEVEL LOW", "EQBAND MID", "EQLEVEL MID", "EQLEVEL HIGH"},
 };
+static const int8_t g_fx2_byte[11][14] = {
+    {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 4, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 4, 5, 6, 8, -1, -1, -1, -1, -1, -1, -1, -1},
+    {1, 2, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 2, 3, 4, 5, 6, 7, -1, -1, -1, -1, -1, -1},
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+    {4, 5, 8, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+    {0, 1, 2, 3, 5, 6, 7, 8, -1, -1, -1, -1, -1, -1},
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+    {0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+};
 static const char *const g_fx2_labels[11][14] = {
     {"", "", "", "", "", "", "", "", "", "", "", "", "", ""},
-    {"SPEED", "DEPTH", "", "DELAY", "", "", "", "", "", "", "", "", "", ""},
-    {"SPEED", "DEPTH", "", "", "FEEDBACK", "", "", "", "POLARITY", "", "", "", "", ""},
-    {"SPEED", "DEPTH", "", "", "FEEDBACK", "CENTER", "SPACING", "", "POLARITY", "", "", "", "", ""},
-    {"", "DRIVE", "POST GAIN", "", "", "CUTOFF", "", "", "", "", "", "", "", ""},
+    {"SPEED", "DEPTH", "DELAY", "", "", "", "", "", "", "", "", "", "", ""},
+    {"SPEED", "DEPTH", "FEEDBACK", "POLARITY", "", "", "", "", "", "", "", "", "", ""},
+    {"SPEED", "DEPTH", "FEEDBACK", "CENTER", "SPACING", "POLARITY", "", "", "", "", "", "", "", ""},
+    {"DRIVE", "POST GAIN", "CUTOFF", "", "", "", "", "", "", "", "", "", "", ""},
     {"CHORUS SPEED", "CHORUS DEPTH", "DELAY", "CHORUS DELAY L", "SAMPLE AND HOL", "OVERDRIVE", "RING MOD SOURC", "RING MOD LEVEL", "", "", "", "", "", ""},
     {"BANDS", "ANALYSIS SIGNA", "ANALYSIS FREQ ", "ANALYSIS FREQ ", "OFFSET S", "OFFSET HI", "BANDWIDTH", "RESONANCE", "ATTACK", "DECAY", "EQLEVEL LOW", "EQBAND MID", "EQLEVEL MID", "EQLEVEL HIGH"},
-    {"", "", "", "", "FEEDBACK", "CUTOFF", "", "", "POLARITY", "AUTOPAN", "", "", "", ""},
-    {"SIZE", "SHAPE", "DECAY", "PRE DELAY", "", "LOWPASS", "HIGHPASS", "DIFFUSION", "DAMPING", "", "", "", "", ""},
+    {"FEEDBACK", "CUTOFF", "POLARITY", "AUTOPAN", "", "", "", "", "", "", "", "", "", ""},
+    {"SIZE", "SHAPE", "DECAY", "PRE DELAY", "LOWPASS", "HIGHPASS", "DIFFUSION", "DAMPING", "", "", "", "", "", ""},
     {"DELAY", "FEEDBACK", "LFE LP", "INPUT HP", "DELAY ML", "FSLVOLUME", "DELAY MR", "FSRVOLUME", "DELAY S2 L", "CENTER SVOLUME", "DELAY S1 L", "REAR SLVOLUME", "DELAY S1 R", "REAR SRVOLUME"},
     {"DELAY", "", "", "", "", "", "", "", "", "", "", "", "", ""},
 };

@@ -912,12 +912,17 @@ void write_byte(Inst *in, int idx, uint8_t v) {
     in->push(std::move(c));
 }
 
-int fx_byte(const char *key, int *fx) {        // "fx1_p3" -> byte 132
-    if (strncmp(key, "fx", 2) || (key[2] != '1' && key[2] != '2') || key[3] != '_' || (key[4] != 'p' && key[4] != 'l')) return -1;
+/* "fx1_p3" / "fx1_l3": knob 3 of effect 1. Each effect type's parameters are packed onto the first knobs (g_fx*_byte), so the knob
+ * maps to a byte by the current type; -1 = this type has no third parameter. *slot gets the knob's index. */
+int fx_byte(Inst *in, const char *key, int *fx, int *slot) {
+    if (strncmp(key, "fx", 2) || (key[2] != '1' && key[2] != '2') || key[3] != '_' || (key[4] != 'p' && key[4] != 'l')) return -2;
     const int n = atoi(key + 5);
-    if (n < 1 || n > 14) return -1;
+    if (n < 1 || n > 14) return -2;
     *fx = key[2] - '0';
-    return (*fx == 1 ? kFx1Base : kFx2Base) + n - 1;
+    *slot = n - 1;
+    const int t = in->raw[*fx == 1 ? kFx1Type : kFx2Type].load();
+    const int off = *fx == 1 ? (t < FX1_TYPES ? g_fx1_byte[t][n - 1] : -1) : (t < FX2_TYPES ? g_fx2_byte[t][n - 1] : -1);
+    return off < 0 ? -1 : (*fx == 1 ? kFx1Base : kFx2Base) + off;
 }
 
 void eng_set(void *p, const char *key, const char *val) {
@@ -958,9 +963,9 @@ void eng_set(void *p, const char *key, const char *val) {
     if (!strcmp(key, "favourite")) { fav_pick(in, atoi(val)); return; }
     if (!strcmp(key, "gain")) { in->gain = clampi(atoi(val), 10, 400); return; }
     if (!strcmp(key, "state")) { restore_state(in, val); return; }
-    int fx;
-    const int fb = fx_byte(key, &fx);
-    if (fb >= 0 && key[4] == 'p') { write_byte(in, fb, (uint8_t)clampi(atoi(val), 0, 127)); return; }
+    int fx, slot;
+    const int fb = fx_byte(in, key, &fx, &slot);
+    if (fb != -2 && key[4] == 'p') { if (fb >= 0) write_byte(in, fb, (uint8_t)clampi(atoi(val), 0, 127)); return; }
     auto it = mq_index().find(key);
     if (it == mq_index().end()) return;
     const mq_param_t &q = g_mq_params[it->second];
@@ -1040,14 +1045,13 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     }
     if (!strcmp(key, "fav_text")) { std::lock_guard<std::mutex> l(in->fm); return put(buf, n, "FAVOURITES %d / %d", in->fav_count, kFavSlots); }
     if (!strcmp(key, "display_rev")) return put(buf, n, "%u", in->rev.load());
-    int fx;
-    const int fb = fx_byte(key, &fx);
-    if (fb >= 0) {
-        if (key[4] == 'p') return put(buf, n, "%d", (int)in->raw[fb].load());
+    int fx, slot;
+    const int fb = fx_byte(in, key, &fx, &slot);
+    if (fb != -2) {
+        if (key[4] == 'p') return put(buf, n, "%d", fb >= 0 ? (int)in->raw[fb].load() : 0);
         const int t = in->raw[fx == 1 ? kFx1Type : kFx2Type].load();
-        const int i = fb - (fx == 1 ? kFx1Base : kFx2Base);
-        const char *lab = fx == 1 ? (t < FX1_TYPES ? g_fx1_labels[t][i] : "") : (t < FX2_TYPES ? g_fx2_labels[t][i] : "");
-        return put(buf, n, "%s", lab[0] ? lab : " ");
+        const char *lab = fx == 1 ? (t < FX1_TYPES ? g_fx1_labels[t][slot] : "") : (t < FX2_TYPES ? g_fx2_labels[t][slot] : "");
+        return put(buf, n, "%s", lab[0] ? lab : "-");
     }
     if (!strcmp(key, "state")) {
         int off = put(buf, n, "{\"state_version\":1,\"bank\":%d,\"preset\":%d,\"gain\":%d", in->bank.load(), in->preset.load(), in->gain.load());
