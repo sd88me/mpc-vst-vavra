@@ -58,8 +58,9 @@ class Page:
         """a label on a contrast chip (the hardware looks), centred at cx, top at y"""
         f = F(size, font)
         tw = int(self.d.textlength(text, font=f))
-        self.d.rounded_rectangle((cx - tw // 2 - 9, y - 3, cx + tw // 2 + 9, y + size + 4), (size + 7) // 2, fill=GOLD)
-        self.d.text((cx, y), text, font=f, fill=INK, anchor="ma")
+        inv = getattr(self, "inv", False)          # on a solid panel: the panel's own colours, swapped
+        self.d.rounded_rectangle((cx - tw // 2 - 9, y - 3, cx + tw // 2 + 9, y + size + 4), (size + 7) // 2, fill=BODY if inv else GOLD)
+        self.d.text((cx, y), text, font=f, fill=CREAM if inv else INK, anchor="ma")
 
     def heading(self, cx, y, text):
         """a heading inside a panel body (SLOT 1, OSC 1 ...)"""
@@ -103,6 +104,8 @@ class Page:
             self.widgets.append('popup cx=%d cy=%d w=%d h=34 label="" key=%s%s' % (cx, cy + Y86 - 2, w, key, cw))
         else:
             self.label(cx, cy - KNOB // 2 - 26, label)
+            if getattr(self, "inv", False):       # a value window: MPC writes the value in the theme ink, which needs the panel colour behind it
+                self.d.rounded_rectangle((cx - 38, cy + 44, cx + 38, cy + 74), 6, fill=BODY)
             self.widgets.append('knob cx=%d cy=%d r=%d label="" key=%s ns=0 vs=22 vy=14 bw=%d' % (cx, cy + Y86, KNOB // 2 - 8, key, KNOB + 26))
 
     def small_knob(self, cx, cy, key, label=None, live_label=None, bw=118):
@@ -197,12 +200,13 @@ p.panel(8, 120, 760, 262, "LCD", solid=True)
 p.readout(388, 200, "lcd1", "", 620)
 p.readout(388, 262, "lcd2", "", 620)
 p.label(388, 316, "THE MICROQ'S OWN DISPLAY", 14, DIM if FLAT is None else INK)
-p.panel(780, 120, 492, 262, "ENGINE", solid=True)
+p.panel(780, 120, 492, 262, "ENGINE")
 p.readout(1026, 200, "loading_status", "", 460, "plain")
 p.readout(1026, 262, "engine_stats", "", 460, "plain")
 p.button(920, 334, "all_notes_off", "PANIC")
 p.button(1130, 334, "init_patch", "RELOAD")
-p.panel(8, 394, 1264, 226, "QUICK EDIT")
+p.panel(8, 394, 1264, 226, "QUICK EDIT", solid=True)
+p.inv = FLAT is not None
 p.row(8, 1272, 520, [("F1Cutoff", "Cutoff 1"), ("F1Resonance", "Reso 1"), ("F1EnvMod", "Env Mod 1"), ("FilterEnvDecay", "F.Env Decay"),
                      ("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix"), ("gain", "Gain %")])
 p.done()
