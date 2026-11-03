@@ -30,6 +30,6 @@ cat > "$OUT/plugin.json" <<JSON
   "url": "https://github.com/sd88me/mpc-vst-vavra"
 }
 JSON
-if find "$OUT" -iname "*.mid" -o -iname "*.bin" -o -iname "*.syx" | grep -q .; then echo "refusing: a ROM-like file is in the folder" >&2; exit 1; fi
+if find "$OUT" -iname "*.mid" -o -iname "*.bin" -o -iname "*.syx" -o -iname "*.dat" | grep -q .; then echo "refusing: a ROM-like file is in the folder" >&2; exit 1; fi
 (cd dist && rm -f "Vavra-$VER-VST2-Plugins.zip" && python3 -m zipfile -c "Vavra-$VER-VST2-Plugins.zip" "VST2 Plugins")
 echo "ok: $OUT, dist/Vavra-$VER-VST2-Plugins.zip"

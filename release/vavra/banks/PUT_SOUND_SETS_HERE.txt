@@ -1,0 +1,2 @@
+Optional: put microQ sound-set files here (.mid or .syx with single sound dumps, e.g. Waldorf's factory sets 2000 / 2001 or the
+"Forum" sets). Each file becomes extra banks of 100 sounds after the ROM's banks A, B and C. None is included.
