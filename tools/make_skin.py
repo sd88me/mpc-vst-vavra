@@ -13,7 +13,7 @@ PARTS = os.path.join(ROOT, "skin", "parts")
 FONT = os.path.join(OUT, "fonts")
 Y86, W, H = 86, 1280, 628
 # LOOK (env VAVRA_LOOK): "rings" = gearmulator's mqDefault; "yellow" = the first microQ's panel; "navy" = the later dark blue one
-LOOK = os.environ.get("VAVRA_LOOK", "yellow")
+LOOK = os.environ.get("VAVRA_LOOK", "rings")
 PAL = {
     #          panel fill        title bar       body             label           title text      dim             bg (None: rings)
     "rings":  ((207, 151, 46), (207, 151, 46), (112, 112, 112), (255, 218, 148), (24, 20, 12), (210, 196, 170), None),
