@@ -196,10 +196,10 @@ def header(p):
 QUICK = ["F1Cutoff", "F1Resonance", "F1EnvMod", "FilterEnvDecay", "AmpEnvAttack", "AmpEnvRelease", "Lfo1Speed", "FX2Mix"]
 p = Page("MAIN", QUICK + ["gain"])
 header(p)
-p.panel(8, 120, 760, 262, "LCD", solid=True)
+p.panel(8, 120, 760, 262, "LCD")
 p.readout(388, 200, "lcd1", "", 620)
 p.readout(388, 262, "lcd2", "", 620)
-p.label(388, 316, "THE MICROQ'S OWN DISPLAY", 14, DIM if FLAT is None else INK)
+p.label(388, 316, "THE MICROQ'S OWN DISPLAY", 14, DIM)
 p.panel(780, 120, 492, 262, "ENGINE")
 p.readout(1026, 200, "loading_status", "", 460, "plain")
 p.readout(1026, 262, "engine_stats", "", 460, "plain")
