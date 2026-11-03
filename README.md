@@ -32,7 +32,7 @@ controller and DSP56362 voice DSP). "Vavra" is gearmulator's name for its microQ
 ![BANKS page](docs/screenshots/banks.png)
 
 ## Requirements
-- An MPC Gen2 standalone device (aarch64, e.g. MPC Live III) running **MPC OS 3.10.1 or later**. Gen1 devices and the Force aren't supported.
+- An MPC Gen2 standalone device (aarch64, e.g. MPC Live III) running **MPC OS 3.10 or later**. Gen1 devices and the Force aren't supported.
 - **Your own microQ ROM.** No ROM is included, and none may be shared. Use a **512 kB flash dump** (`.bin`, OS 2.23, as read from the chip or
   byte-swapped: both work). The OS update file `mq_2_23.mid` also boots, but it holds no factory sounds, so banks A to C are then empty.
 

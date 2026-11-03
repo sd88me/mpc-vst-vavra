@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The plugin folder in MPC OS 3.10.1's own format (no MPC.settings entry, no root): copy the folder into "VST2 Plugins" at the root
+# The plugin folder in the MPC OS plugin folder format (no MPC.settings entry, no root): copy the folder into "VST2 Plugins" at the root
 # of a drive, turn on Preferences > Enhancements (Beta) > Enable Enhancements and VST2 Support, and it is listed under External VST
 # Plugins. Format: the MPC plugin SDK's docs/plugin-folder-format.md (plugin.json, VST/<slug>-arm64.so, Plugin Skins/, version.xml).
 #   tools/package_310.sh <version>     -> dist/VST2 Plugins/sd88me - VST - Vavra/ and dist/Vavra-<version>-VST2-Plugins.zip
