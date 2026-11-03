@@ -198,17 +198,17 @@ p = Page("MAIN", QUICK + ["gain"])
 header(p)
 p.panel(8, 120, 1264, 262, "LCD")
 # one 4-line display: the microQ's own two lines, then Vavra's status and stats, in a single bezel
-p.d.rounded_rectangle((28, 150, 1010, 368), 10, fill=GOLD_DARK)
-p.d.rectangle((36, 158, 1002, 360), fill=(38, 144, 41))
+p.d.rounded_rectangle((180, 150, 900, 368), 10, fill=GOLD_DARK)
+p.d.rectangle((188, 158, 892, 360), fill=(38, 144, 41))
 for yy in range(160, 360, 3):                       # the LCD's dot rows
-    p.d.line((36, yy, 1002, yy), fill=(44, 154, 47))
-for xx in range(38, 1002, 3):
+    p.d.line((188, yy, 892, yy), fill=(44, 154, 47))
+for xx in range(190, 892, 3):
     p.d.line((xx, 158, xx, 360), fill=(35, 136, 38))
-p.d.line((44, 259, 994, 259), fill=(30, 110, 33), width=2)     # the microQ's two lines above, Vavra's below
+p.d.line((196, 259, 884, 259), fill=(30, 110, 33), width=2)     # the microQ's two lines above, Vavra's below
 for i, k in enumerate(("lcd1", "lcd2", "loading_status", "engine_stats")):
-    p.widgets.append('readout cx=519 cy=%d w=950 h=40 label="" key=%s box=0 tsize=24 tcolor=08200a tweight=700' % (184 + i * 50 + Y86, k))
-p.button(1140, 210, "all_notes_off", "PANIC")
-p.button(1140, 300, "init_patch", "RELOAD")
+    p.widgets.append('readout cx=540 cy=%d w=690 h=40 label="" key=%s box=0 tsize=24 tcolor=08200a tweight=700' % (184 + i * 50 + Y86, k))
+p.button(1086, 210, "all_notes_off", "PANIC")
+p.button(1086, 300, "init_patch", "RELOAD")
 p.panel(8, 394, 1264, 226, "QUICK EDIT", solid=True)
 p.inv = FLAT is not None
 p.row(8, 1272, 520, [("F1Cutoff", "Cutoff 1"), ("F1Resonance", "Reso 1"), ("F1EnvMod", "Env Mod 1"), ("FilterEnvDecay", "F.Env Decay"),
