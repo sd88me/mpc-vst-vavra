@@ -52,6 +52,21 @@ static std::string disp(AEffect* e, int i) { char b[128] = {0}; e->dispatcher(e,
 static std::string progName(AEffect* e, int i) { char b[64] = {0}; e->dispatcher(e, effGetProgramNameIndexed, i, 0, b, 0); return b; }
 
 static double g_rms, g_peak;
+static std::vector<float>* g_rec;     // VAVRA_REC=<dir>: what run() renders, written as <dir>/<name>.wav (listening / analysis)
+static void recWav(const char* name, const std::vector<float>& v, int sr)
+{
+    const char* dir = std::getenv("VAVRA_REC");
+    if (!dir || v.empty()) return;
+    FILE* f = std::fopen((std::string(dir) + "/" + name + ".wav").c_str(), "wb");
+    if (!f) return;
+    const uint32_t data = (uint32_t)(v.size() * 4), riff = 36 + data, fmt = 16, rate = (uint32_t)sr, bps = rate * 8;
+    const uint16_t pcm = 3, chs = 2, align = 8, bits = 32;
+    std::fwrite("RIFF", 1, 4, f); std::fwrite(&riff, 4, 1, f); std::fwrite("WAVEfmt ", 1, 8, f); std::fwrite(&fmt, 4, 1, f);
+    std::fwrite(&pcm, 2, 1, f); std::fwrite(&chs, 2, 1, f); std::fwrite(&rate, 4, 1, f); std::fwrite(&bps, 4, 1, f);
+    std::fwrite(&align, 2, 1, f); std::fwrite(&bits, 2, 1, f); std::fwrite("data", 1, 4, f); std::fwrite(&data, 4, 1, f);
+    std::fwrite(v.data(), 4, v.size(), f);
+    std::fclose(f);
+}
 static void run(AEffect* e, int blocks, const std::vector<std::vector<uint8_t>>& midi = {}, int frames = 128)
 {
     std::vector<float> L((size_t)frames), R((size_t)frames);
@@ -77,6 +92,7 @@ static void run(AEffect* e, int blocks, const std::vector<std::vector<uint8_t>>&
         }
         e->processReplacing(e, nullptr, out, frames);
         if (g_giveTime) g_time.ppqPos += frames * g_time.tempo / 60.0 / g_time.sampleRate;
+        if (g_rec) for (int i = 0; i < frames; i++) { g_rec->push_back(L[i]); g_rec->push_back(R[i]); }
         for (int i = 0; i < frames; i++) { acc += (double)L[i] * L[i] + (double)R[i] * R[i]; n += 2; g_peak = std::max(g_peak, (double)std::max(std::fabs(L[i]), std::fabs(R[i]))); }
         std::this_thread::sleep_for(std::chrono::microseconds(2900 * frames / 128));
     }
@@ -152,8 +168,19 @@ int main(int argc, char** argv)
     CHECK(eng(a, "patch_slot_30").size() > 4, "ROM sound names known (tile 30 \"%s\")", eng(a, "patch_slot_30").c_str());
 
     std::printf("== sound\n");
+    std::vector<float> rec;
+    g_rec = &rec;
     run(a, 200, {{0x90, 60, 100}});
     const double on = g_rms;
+    if (std::getenv("VAVRA_REC"))                  // recording: hold the note ~3 s, then a C minor chord ~3 s
+    {
+        run(a, 800);
+        run(a, 100, {{0x80, 60, 0}});
+        run(a, 1000, {{0x90, 48, 100}, {0x90, 60, 100}, {0x90, 63, 100}, {0x90, 67, 100}});
+        run(a, 300, {{0x80, 48, 0}, {0x80, 60, 0}, {0x80, 63, 0}, {0x80, 67, 0}});
+    }
+    g_rec = nullptr;
+    recWav("a001_44k", rec, 44100);
     run(a, 600, {{0x80, 60, 0}});
     run(a, 200);
     const double off = g_rms;          // ~2 s after the note off
@@ -471,7 +498,11 @@ int main(int argc, char** argv)
     for (AEffect* e : {a, b, c}) close(e);
     AEffect* d = open("D", 48000.f);
     CHECK(waitReady(d), "D ready");
+    std::vector<float> rec48;
+    g_rec = &rec48;
     run(d, 200, {{0x90, 60, 100}});
+    g_rec = nullptr;
+    recWav("d_48k", rec48, 48000);
     CHECK(g_rms > 1e-3, "D plays at 48 kHz (rms %.4f; %s; %s)", g_rms, eng(d, "loading_status").c_str(), eng(d, "preset_name").c_str());
     run(d, 50, {{0x80, 60, 0}});
     close(d);
