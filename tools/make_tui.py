@@ -318,37 +318,39 @@ def display_row(pg, x0, y0, y1, fields, size, aw=40):
 
 # ---- the pages ---------------------------------------------------------------------------------------------------------------
 def page_main(fn):
+    """MAIN: one display in the blue band, as the hardware's: the microQ's own LCD (two large lines), then bank | sound with step
+    arrows, then status | dropouts and CPU | favourites; the sound keys in a row under it; three quick-edit blocks."""
     pg = Page("MAIN", fn)
-    A.band(pg.art, 0, 18, 1280, 110, oval=(-90, -24, 1370, 122))
-    A.wordmark(pg.art, 34, 22, 62)
-    display(pg, 300, 26, 1262, 102, [([(640, "bank_name", "bank_prev", "bank_next"), (1262, "preset_name", "preset_prev", "preset_next")], 27),
-                                     ([(830, "loading_status", None, None), (1262, "engine_stats", None, None)], 20)])
-    # the microQ's own LCD, live
-    pg.section(16, 128, 812, 372, "lcd")
-    A.lcd(pg.art, 60, 172, 768, 346, cells=34)
-    pg.kids.append(label("70 182 690 72", "lcd1", 50, hexcol(A.LCD_INK), "left verticallyCentred"))
-    pg.kids.append(label("70 262 690 72", "lcd2", 50, hexcol(A.LCD_INK), "left verticallyCentred"))
-    pg.section(828, 128, 1264, 372, "sound")
-    pg.key("all_notes_off", 906, 196, "PANIC")
-    pg.key("init_patch", 1046, 196, "RELOAD")
-    pg.key("skin", 1186, 196, "SKIN")
-    pg.key("random_patch", 906, 288, "RANDOM")
-    pg.key("fav_save", 1046, 288, "+ FAV")
-    pg.key("fav_delete", 1186, 288, "- FAV")
-    pg.readout("fav_text", 860, 330, 1232, 358, 19)
+    A.band(pg.art, 0, 8, 1280, 236, oval=(-90, -60, 1370, 250))
+    A.wordmark(pg.art, 34, 60, 62)
+    x0, x1, y0, y1 = 290, 1262, 18, 226
+    A.lcd(pg.art, x0, y0, x1, y1, cells=0)
+    d = ImageDraw.Draw(pg.art)
+    d.line((x0 + 6, 128, x1 - 6, 128), fill=A.LCD_DK + (255,), width=2)
+    d.line((x0 + 6, 180, x1 - 6, 180), fill=A.LCD_DK + (255,), width=1)
+    pg.kids.append(label("%d 20 %d 54" % (x0 + 16, x1 - x0 - 32), "lcd1", 50, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    pg.kids.append(label("%d 72 %d 54" % (x0 + 16, x1 - x0 - 32), "lcd2", 50, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    display_row(pg, x0, 130, 180, [(640, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 30)
+    display_row(pg, x0, 182, 226, [(720, "loading_status", None, None), (990, "engine_stats", None, None), (x1, "fav_text", None, None)], 22)
+    # the sound keys
+    pg.section(16, 250, 1264, 362, "sound")
+    for i, (k, cap) in enumerate((("all_notes_off", "PANIC"), ("init_patch", "RELOAD"), ("random_patch", "RANDOM"),
+                                  ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("skin", "SKIN"))):
+        pg.key(k, 250 + i * 170 + (60 if i >= 3 else 0), 310, cap)
     # quick edit: three blocks
-    pg.section(16, 388, 478, 620, "filter 1")
+    ky = 512
+    pg.section(16, 376, 478, 620, "filter 1")
     for i, (k, c) in enumerate((("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay"))):
-        pg.knob(k, 79 + i * 112, 520, c)
-    pg.section(490, 388, 952, 620, "amp & mod")
+        pg.knob(k, 79 + i * 112, ky, c)
+    pg.section(490, 376, 952, 620, "amp & mod")
     for i, (k, c) in enumerate((("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix"))):
-        pg.knob(k, 553 + i * 112, 520, c)
-    pg.section(964, 388, 1264, 620, "output")
-    pg.knob("AmpVolume", 1058, 520, "Volume")
-    pg.knob("gain", 1170, 520, "Gain %")
+        pg.knob(k, 553 + i * 112, ky, c)
+    pg.section(964, 376, 1264, 620, "output")
+    pg.knob("AmpVolume", 1058, ky, "Volume")
+    pg.knob("gain", 1170, ky, "Gain %")
     for keys in (["F1Cutoff", "F1Resonance", "F1EnvMod", "FilterEnvDecay"], ["AmpEnvAttack", "AmpEnvRelease", "Lfo1Speed", "FX2Mix"], ["AmpVolume", "gain"]):
         pg.block(keys)
-    pg.block(["bank_index", "preset"], rect=(296, 22, 1266, 64))
+    pg.block(["bank_index", "preset"], rect=(286, 128, 1266, 182))
     keyboard(pg)
     return pg
 

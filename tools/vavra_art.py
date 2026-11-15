@@ -132,22 +132,23 @@ def _norm(v):
 
 
 def _knob_layers(size, red):
-    """The microQ editor's knob seen from above, shaded per pixel at 4x: a thick glossy black ring (the knob's rounded sides), a dark gap,
-    and a flat brushed-metal top with the bright opposite sectors that circular brushing gives (a red metal top on the cutoff). The light
-    does not turn with the knob and circular brushing looks the same at any angle, so these layers serve every frame; the light dots of
-    the side windows, which do turn, are drawn per frame."""
+    """The microQ's knob seen from above, shaded per pixel at 4x: a tapered cone in dark smoky plastic, and a big flat top: a black rim
+    around brushed metal (red metal on the cutoff), as the microQ editor draws it. The light does not turn with the knob and circular
+    brushing looks the same at any angle, so these layers serve every frame; the five subtle side windows, which do turn, are drawn per
+    frame between them."""
     S = 4
     n = size * S
-    R = n / 2.0 - 10 * S                   # room round the knob for the value ring
+    R = n / 2.0 - 10 * S                   # room around the knob for the value ring
     cx = cy = n / 2.0 - 1 * S
     L = _norm(LIGHT)
     H = _norm((L[0], L[1], L[2] + 1.0))
-    la = math.atan2(LIGHT[1], LIGHT[0])
-    ring = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    top = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    pr, pt = ring.load(), top.load()
-    RT = 0.60                              # the metal top's radius (of R)
+    cone = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    cap = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    pc, pt = cone.load(), cap.load()
+    RC = 0.74                              # the top's radius (of R)
+    RIM = 0.08                             # its black rim
     metal = (178, 74, 62) if red else (150, 150, 146)
+    la = math.atan2(LIGHT[1], LIGHT[0])
     import random
     rnd = random.Random(7)
     grain = [rnd.uniform(-1, 1) for _ in range(4096)]            # concentric brushing: a fine random brightness per radius
@@ -158,50 +159,62 @@ def _knob_layers(size, red):
             if r > 1.0:
                 continue
             ux, uy = (dx / (r * R), dy / (r * R)) if r > 0 else (0.0, 0.0)
-            if r >= RT:                     # the black ring: a rounded profile from the gap (RT) to the foot (1.0)
-                k = (r - RT) / (1 - RT) * 2 - 1                      # -1 inner edge .. +1 outer edge
-                tilt = k * 0.95
-                nn = _norm((ux * tilt, uy * tilt, math.sqrt(max(0.05, 1 - tilt * tilt))))
+            if r >= RC - 0.01:             # the cone: dark smoky plastic, sloping out and down
+                k = (r - RC) / (1 - RC)
+                nn = _norm((ux * 0.62, uy * 0.62, 0.78 - 0.45 * k * k))
                 dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
-                spc = max(0.0, sum(a * b for a, b in zip(nn, H)))
-                g = 10 + 34 * dif + 210 * spc ** 40 + 26 * spc ** 6
-                if r < RT + 0.035:          # the dark gap around the top
-                    g *= 0.35
-                pr[x, y] = (int(min(255, g)), int(min(255, g)), int(min(255, g + 3)), 255)
-            else:                           # the flat brushed top
-                th = math.atan2(dy, dx)
-                sheen = abs(math.cos(th - la - math.pi / 2)) ** 3            # bright sectors across the light
-                gr = grain[int(r * R * 6) % 4096] * 7                          # the brushing rings
-                lin = 1.04 - 0.10 * ((dx + dy) / (2 * R * RT) + 0.5)
-                col = [(c * (0.78 + 0.34 * sheen) + gr) * lin for c in metal]
-                if r > RT - 0.03:           # a fine bevel at its edge
-                    col = [c * 0.7 for c in col]
-                pt[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
+                spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 18
+                g = (24 + 50 * dif + 60 * spc) * (1 - 0.5 * max(0.0, (r - 0.96) / 0.04))
+                pc[x, y] = (int(g * 1.03), int(g), int(g * 0.92), 255)
+            if r < RC:
+                if r > RC - RIM:           # the black rim of the top
+                    t = (r - (RC - RIM)) / RIM
+                    nn = _norm((ux * (t - 0.35) * 1.5, uy * (t - 0.35) * 1.5, 1.0))
+                    spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 30
+                    g = 8 + 26 * max(0.0, sum(a * b for a, b in zip(nn, L))) + 190 * spc
+                    pt[x, y] = (int(g), int(g), int(g + 2), 255)
+                else:                       # the flat brushed-metal top (circular brushing: bright sectors across the light)
+                    th = math.atan2(dy, dx)
+                    sheen = abs(math.cos(th - la - math.pi / 2)) ** 3
+                    gr = grain[int(r * R * 6) % 4096] * 7
+                    lin = 1.04 - 0.10 * ((dx + dy) / (2 * R * RC) + 0.5)
+                    col = [(c * (0.78 + 0.34 * sheen) + gr) * lin for c in metal]
+                    if r > RC - RIM - 0.03:
+                        col = [c * 0.7 for c in col]                                  # a fine bevel at its edge
+                    pt[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
     shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 140))
+    ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 130))
     shadow = shadow.filter(ImageFilter.GaussianBlur(3 * S))
-    return shadow, ring, top, (cx, cy, R, RT)
+    return shadow, cone, cap, (cx, cy, R, RC)
 
 
-def _flutes(n, cx, cy, R, RT, rot):
-    """the side windows seen from above: small light dots on the ring's outer slope, turned by `rot` (radians)"""
+def _flutes(n, cx, cy, R, RC, rot):
+    """the five clear pill windows of the sides, turned by `rot` (radians): even-width capsules from just outside the top to near the
+    foot, the yellow panel faintly through them, a dark edge, a glint along the side that faces the light"""
     S = 4
     lay = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     la = math.atan2(LIGHT[1], LIGHT[0])
-    for i in range(6):
-        phi = rot + i * math.pi / 3
-        face = 0.5 + 0.5 * math.cos(phi - la)
-        px, py = cx + math.cos(phi) * R * 0.86, cy + math.sin(phi) * R * 0.86
-        rw, rt = R * 0.075, R * 0.05                                  # a little longer round the ring than across it
-        pts = []
-        for k in range(24):
-            t = k / 24.0 * 2 * math.pi
-            a, b = rw * math.cos(t), rt * math.sin(t)
-            pts.append((px - math.sin(phi) * a + math.cos(phi) * b, py + math.cos(phi) * a + math.sin(phi) * b))
-        g = int(170 + 70 * face)
-        d.polygon(pts, fill=(g, g, g - 6, 235))
-    return lay.filter(ImageFilter.GaussianBlur(0.5 * S))
+    r0, r1, w = RC + 0.05, 0.93, 0.13
+    for i in range(5):
+        phi = rot + i * 2 * math.pi / 5
+        face = 0.5 + 0.5 * math.cos(phi - la)                  # 1 = facing the light
+        ux, uy, vx, vy = math.cos(phi), math.sin(phi), -math.sin(phi), math.cos(phi)
+
+        def capsule(a0, a1, hw, off, col):
+            pts = []
+            for k in range(24):                                 # the outer round end, then the inner one
+                t = math.pi / 2 - k / 23.0 * math.pi
+                pts.append((a1 + hw * math.cos(t), hw * math.sin(t) + off))
+            for k in range(24):
+                t = -math.pi / 2 - k / 23.0 * math.pi
+                pts.append((a0 + hw * math.cos(t), hw * math.sin(t) + off))
+            d.polygon([(cx + (ux * p + vx * q) * R, cy + (uy * p + vy * q) * R) for p, q in pts], fill=col)
+        g = 0.55 + 0.45 * face                                   # very subtle from above: a slightly lighter, warmer window
+        capsule(r0, r1, w, 0.0, (int(70 * g), int(66 * g), int(46 * g), 120))
+        side = -1 if math.sin(phi - la) > 0 else 1
+        capsule(r0 + 0.02, r1 - 0.02, 0.02, side * 0.07, (int(140 + 60 * face), int(136 + 60 * face), int(110 + 40 * face), int(40 + 50 * face)))   # glint
+    return lay.filter(ImageFilter.GaussianBlur(0.6 * S))
 
 
 FILL = (34, 120, 214)                 # the value fill: the panel's blue, a little brighter
