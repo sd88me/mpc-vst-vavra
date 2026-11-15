@@ -318,39 +318,40 @@ def display_row(pg, x0, y0, y1, fields, size, aw=40):
 
 # ---- the pages ---------------------------------------------------------------------------------------------------------------
 def page_main(fn):
-    """MAIN: one display in the blue band, as the hardware's: the microQ's own LCD (two large lines), then bank | sound with step
-    arrows, then status | dropouts and CPU | favourites; the sound keys in a row under it; three quick-edit blocks."""
+    """MAIN: one display in the blue band, as the hardware's: the microQ's own LCD (two lines), then bank | sound with step arrows, then
+    status | dropouts and CPU | favourites; SKIN beside it (a global setting); the sound keys in a row; three quick-edit blocks."""
     pg = Page("MAIN", fn)
-    A.band(pg.art, 0, 8, 1280, 236, oval=(-90, -60, 1370, 250))
-    A.wordmark(pg.art, 34, 60, 62)
-    x0, x1, y0, y1 = 290, 1262, 18, 226
+    A.band(pg.art, 0, 8, 1280, 184, oval=(-90, -60, 1370, 196))
+    A.wordmark(pg.art, 34, 44, 58)
+    x0, x1, y0, y1 = 300, 1110, 20, 172
     A.lcd(pg.art, x0, y0, x1, y1, cells=0)
     d = ImageDraw.Draw(pg.art)
-    d.line((x0 + 6, 128, x1 - 6, 128), fill=A.LCD_DK + (255,), width=2)
-    d.line((x0 + 6, 180, x1 - 6, 180), fill=A.LCD_DK + (255,), width=1)
-    pg.kids.append(label("%d 20 %d 54" % (x0 + 16, x1 - x0 - 32), "lcd1", 50, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
-    pg.kids.append(label("%d 72 %d 54" % (x0 + 16, x1 - x0 - 32), "lcd2", 50, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
-    display_row(pg, x0, 130, 180, [(640, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 30)
-    display_row(pg, x0, 182, 226, [(720, "loading_status", None, None), (990, "engine_stats", None, None), (x1, "fav_text", None, None)], 22)
+    d.line((x0 + 6, 98, x1 - 6, 98), fill=A.LCD_DK + (255,), width=2)
+    d.line((x0 + 6, 136, x1 - 6, 136), fill=A.LCD_DK + (255,), width=1)
+    pg.kids.append(label("%d 22 %d 38" % (x0 + 14, x1 - x0 - 28), "lcd1", 36, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    pg.kids.append(label("%d 58 %d 38" % (x0 + 14, x1 - x0 - 28), "lcd2", 36, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    display_row(pg, x0, 100, 136, [(610, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 25, aw=34)
+    display_row(pg, x0, 138, 172, [(670, "loading_status", None, None), (900, "engine_stats", None, None), (x1, "fav_text", None, None)], 19)
+    pg.key("skin", 1192, 96, "SKIN", ink=A.WHITE)
     # the sound keys
-    pg.section(16, 250, 1264, 362, "sound")
+    pg.section(16, 198, 1264, 306, "sound")
     for i, (k, cap) in enumerate((("all_notes_off", "PANIC"), ("init_patch", "RELOAD"), ("random_patch", "RANDOM"),
-                                  ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("skin", "SKIN"))):
-        pg.key(k, 250 + i * 170 + (60 if i >= 3 else 0), 310, cap)
+                                  ("fav_save", "+ FAV"), ("fav_delete", "- FAV"))):
+        pg.key(k, 260 + i * 190 + (80 if i >= 3 else 0), 256, cap)
     # quick edit: three blocks
-    ky = 512
-    pg.section(16, 376, 478, 620, "filter 1")
+    ky = 482
+    pg.section(16, 324, 478, 620, "filter 1")
     for i, (k, c) in enumerate((("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay"))):
         pg.knob(k, 79 + i * 112, ky, c)
-    pg.section(490, 376, 952, 620, "amp & mod")
+    pg.section(490, 324, 952, 620, "amp & mod")
     for i, (k, c) in enumerate((("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix"))):
         pg.knob(k, 553 + i * 112, ky, c)
-    pg.section(964, 376, 1264, 620, "output")
+    pg.section(964, 324, 1264, 620, "output")
     pg.knob("AmpVolume", 1058, ky, "Volume")
     pg.knob("gain", 1170, ky, "Gain %")
     for keys in (["F1Cutoff", "F1Resonance", "F1EnvMod", "FilterEnvDecay"], ["AmpEnvAttack", "AmpEnvRelease", "Lfo1Speed", "FX2Mix"], ["AmpVolume", "gain"]):
         pg.block(keys)
-    pg.block(["bank_index", "preset"], rect=(286, 128, 1266, 182))
+    pg.block(["bank_index", "preset"], rect=(296, 98, 1114, 138))
     keyboard(pg)
     return pg
 
