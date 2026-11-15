@@ -1045,6 +1045,14 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     }
     if (!strcmp(key, "fav_text")) { std::lock_guard<std::mutex> l(in->fm); return put(buf, n, "FAVOURITES %d / %d", in->fav_count, kFavSlots); }
     if (!strcmp(key, "display_rev")) return put(buf, n, "%u", in->rev.load());
+    if (!strcmp(key, "ready")) return put(buf, n, "%d", in->ready.load() ? 1 : 0);      // the native front end: booted, "state" now holds the sound
+    if (!strcmp(key, "fav_count")) { std::lock_guard<std::mutex> l(in->fm); return put(buf, n, "%d", in->fav_count); }
+    if (!strncmp(key, "fav_name:", 9)) {      // a favourite's name for the native front end's PRESET menu (unlike "favourite:", no menu hold)
+        std::lock_guard<std::mutex> l(in->fm);
+        const int i = atoi(key + 9);
+        return put(buf, n, "%s", i >= 0 && i < in->fav_count ? in->fav_name[i] : "");
+    }
+    if (!strcmp(key, "bank_count")) return put(buf, n, "%d", bank_count(in));
     int fx, slot;
     const int fb = fx_byte(in, key, &fx, &slot);
     if (fb != -2) {

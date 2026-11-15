@@ -4,3 +4,4 @@ vst/preview/
 dist/
 data/
 *.wav
+tests/data/*.chunk
