@@ -132,23 +132,25 @@ def _norm(v):
 
 
 def _knob_layers(size, red):
-    """The microQ's knob seen from above, shaded per pixel at 4x: a wide tapered cone in dark smoky plastic, and the clear top: a black
-    rim around a clear dome through which the dark shaft insert shows (red-tinted on the cutoff). The light does not turn with the knob,
-    so these layers serve every frame; the five clear side windows, which do turn, are drawn per frame between them."""
+    """The microQ editor's knob seen from above, shaded per pixel at 4x: a thick glossy black ring (the knob's rounded sides), a dark gap,
+    and a flat brushed-metal top with the bright opposite sectors that circular brushing gives (a red metal top on the cutoff). The light
+    does not turn with the knob and circular brushing looks the same at any angle, so these layers serve every frame; the light dots of
+    the side windows, which do turn, are drawn per frame."""
     S = 4
     n = size * S
-    R = n / 2.0 - 10 * S                   # room around the knob for the value ring
+    R = n / 2.0 - 10 * S                   # room round the knob for the value ring
     cx = cy = n / 2.0 - 1 * S
     L = _norm(LIGHT)
     H = _norm((L[0], L[1], L[2] + 1.0))
-    cone = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    cap = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    pc, pt = cone.load(), cap.load()
-    RC = 0.74                              # the top's radius (of R)
-    RIM = 0.08                             # its black rim
-    RI = 0.30                              # the shaft insert seen through the clear top
-    glass = (150, 70, 60) if red else (112, 108, 92)      # clear plastic over the dark insert, the yellow panel faintly in it
-    insert = (120, 18, 16) if red else (30, 30, 32)
+    la = math.atan2(LIGHT[1], LIGHT[0])
+    ring = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    top = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    pr, pt = ring.load(), top.load()
+    RT = 0.60                              # the metal top's radius (of R)
+    metal = (178, 74, 62) if red else (150, 150, 146)
+    import random
+    rnd = random.Random(7)
+    grain = [rnd.uniform(-1, 1) for _ in range(4096)]            # concentric brushing: a fine random brightness per radius
     for y in range(n):
         for x in range(n):
             dx, dy = x + 0.5 - cx, y + 0.5 - cy
@@ -156,73 +158,60 @@ def _knob_layers(size, red):
             if r > 1.0:
                 continue
             ux, uy = (dx / (r * R), dy / (r * R)) if r > 0 else (0.0, 0.0)
-            if r >= RC - 0.01:             # the cone: dark smoky plastic, sloping out and down
-                k = (r - RC) / (1 - RC)
-                nn = _norm((ux * 0.62, uy * 0.62, 0.78 - 0.45 * k * k))
+            if r >= RT:                     # the black ring: a rounded profile from the gap (RT) to the foot (1.0)
+                k = (r - RT) / (1 - RT) * 2 - 1                      # -1 inner edge .. +1 outer edge
+                tilt = k * 0.95
+                nn = _norm((ux * tilt, uy * tilt, math.sqrt(max(0.05, 1 - tilt * tilt))))
                 dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
-                spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 18
-                g = (24 + 50 * dif + 60 * spc) * (1 - 0.5 * max(0.0, (r - 0.96) / 0.04))
-                pc[x, y] = (int(g * 1.03), int(g), int(g * 0.92), 255)
-            if r < RC:
-                if r > RC - RIM:           # the black rim of the top
-                    t = (r - (RC - RIM)) / RIM
-                    nn = _norm((ux * (t - 0.35) * 1.5, uy * (t - 0.35) * 1.5, 1.0))
-                    spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 30
-                    g = 8 + 26 * max(0.0, sum(a * b for a, b in zip(nn, L))) + 190 * spc
-                    pt[x, y] = (int(g), int(g), int(g + 2), 255)
-                else:                       # the clear top, flat: the insert and its well seen through flat glass, evenly lit
-                    if r < RI:
-                        col = list(insert)
-                    else:
-                        t = (r - RI) / (RC - RIM - RI)
-                        col = [g * (0.82 + 0.18 * t) for g in glass]
-                        if t < 0.10:
-                            col = [c * 0.55 for c in col]                            # the insert's edge
-                    lin = 1.06 - 0.12 * ((dx + dy) / (2 * R * RC) + 0.5)                # a faint even fall-off across the flat face
-                    pt[x, y] = tuple(int(min(255, max(0, c * lin))) for c in col) + (255,)
+                spc = max(0.0, sum(a * b for a, b in zip(nn, H)))
+                g = 10 + 34 * dif + 210 * spc ** 40 + 26 * spc ** 6
+                if r < RT + 0.035:          # the dark gap around the top
+                    g *= 0.35
+                pr[x, y] = (int(min(255, g)), int(min(255, g)), int(min(255, g + 3)), 255)
+            else:                           # the flat brushed top
+                th = math.atan2(dy, dx)
+                sheen = abs(math.cos(th - la - math.pi / 2)) ** 3            # bright sectors across the light
+                gr = grain[int(r * R * 6) % 4096] * 7                          # the brushing rings
+                lin = 1.04 - 0.10 * ((dx + dy) / (2 * R * RT) + 0.5)
+                col = [(c * (0.78 + 0.34 * sheen) + gr) * lin for c in metal]
+                if r > RT - 0.03:           # a fine bevel at its edge
+                    col = [c * 0.7 for c in col]
+                pt[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
     shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 130))
+    ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 140))
     shadow = shadow.filter(ImageFilter.GaussianBlur(3 * S))
-    return shadow, cone, cap, (cx, cy, R, RC)
+    return shadow, ring, top, (cx, cy, R, RT)
 
 
-def _flutes(n, cx, cy, R, RC, rot):
-    """the five clear pill windows of the sides, turned by `rot` (radians): even-width capsules from just outside the top to near the
-    foot, the yellow panel faintly through them, a dark edge, a glint along the side that faces the light"""
+def _flutes(n, cx, cy, R, RT, rot):
+    """the side windows seen from above: small light dots on the ring's outer slope, turned by `rot` (radians)"""
     S = 4
     lay = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
     la = math.atan2(LIGHT[1], LIGHT[0])
-    r0, r1, w = RC + 0.05, 0.93, 0.13
-    for i in range(5):
-        phi = rot + i * 2 * math.pi / 5
-        face = 0.5 + 0.5 * math.cos(phi - la)                  # 1 = facing the light
-        ux, uy, vx, vy = math.cos(phi), math.sin(phi), -math.sin(phi), math.cos(phi)
-
-        def capsule(a0, a1, hw, off, col):
-            pts = []
-            for k in range(24):                                 # the outer round end, then the inner one
-                t = math.pi / 2 - k / 23.0 * math.pi
-                pts.append((a1 + hw * math.cos(t), hw * math.sin(t) + off))
-            for k in range(24):
-                t = -math.pi / 2 - k / 23.0 * math.pi
-                pts.append((a0 + hw * math.cos(t), hw * math.sin(t) + off))
-            d.polygon([(cx + (ux * p + vx * q) * R, cy + (uy * p + vy * q) * R) for p, q in pts], fill=col)
-        g = 0.55 + 0.45 * face                                   # very subtle from above: a slightly lighter, warmer window
-        capsule(r0, r1, w, 0.0, (int(70 * g), int(66 * g), int(46 * g), 120))
-        side = -1 if math.sin(phi - la) > 0 else 1
-        capsule(r0 + 0.02, r1 - 0.02, 0.02, side * 0.07, (int(140 + 60 * face), int(136 + 60 * face), int(110 + 40 * face), int(40 + 50 * face)))   # glint
-    return lay.filter(ImageFilter.GaussianBlur(0.6 * S))
+    for i in range(6):
+        phi = rot + i * math.pi / 3
+        face = 0.5 + 0.5 * math.cos(phi - la)
+        px, py = cx + math.cos(phi) * R * 0.86, cy + math.sin(phi) * R * 0.86
+        rw, rt = R * 0.075, R * 0.05                                  # a little longer round the ring than across it
+        pts = []
+        for k in range(24):
+            t = k / 24.0 * 2 * math.pi
+            a, b = rw * math.cos(t), rt * math.sin(t)
+            pts.append((px - math.sin(phi) * a + math.cos(phi) * b, py + math.cos(phi) * a + math.sin(phi) * b))
+        g = int(170 + 70 * face)
+        d.polygon(pts, fill=(g, g, g - 6, 235))
+    return lay.filter(ImageFilter.GaussianBlur(0.5 * S))
 
 
 FILL = (34, 120, 214)                 # the value fill: the panel's blue, a little brighter
 FILL_RED = (255, 70, 40)
 
 
-def knob_strip(size=76, frames=101, red=False, bipolar=False, fill="ring"):
+def knob_strip(size=76, frames=101, red=False, bipolar=False, fill="ring", pointer=False):
     """The microQ knob as a film strip (-135 .. +135 degrees over the frames): cone, turning clear windows, clear top. The real knob has
     no pointer, so the value is a fill: fill="ring" an arc in a recessed track round the knob, fill="top" a lit wedge under the clear top.
-    bipolar: the fill grows from the top centre either way (a -64 .. +63 value)."""
+    bipolar: the fill grows from the top centre either way (a -64 .. +63 value). pointer: the editor's white bar on the top as well."""
     S = 4
     shadow, cone, cap, (cx, cy, R, RC) = _knob_layers(size, red)
     n = size * S
@@ -258,6 +247,14 @@ def knob_strip(size=76, frames=101, red=False, bipolar=False, fill="ring"):
             ImageDraw.Draw(im).arc((cx - rr, cy - rr, cx + rr, cy + rr), lo, hi, fill=col + (255,), width=int(4 * S))
         im.alpha_composite(_flutes(n, cx, cy, R, RC, math.radians(-135 + 270 * t - 90)))
         im.alpha_composite(cap)
+        if pointer:
+            pa = math.radians(-135 + 270 * t - 90)
+            pd = ImageDraw.Draw(im)
+            x0, y0 = cx + math.cos(pa) * R * 0.02, cy + math.sin(pa) * R * 0.02
+            x1, y1 = cx + math.cos(pa) * R * (RC + 0.04), cy + math.sin(pa) * R * (RC + 0.04)
+            pd.line((x0 + 1.2 * S, y0 + 1.8 * S, x1 + 1.2 * S, y1 + 1.8 * S), fill=(0, 0, 0, 100), width=int(3.6 * S))
+            pd.line((x0, y0, x1, y1), fill=(250, 250, 248, 255), width=int(3.0 * S))
+            pd.ellipse((x1 - 1.5 * S, y1 - 1.5 * S, x1 + 1.5 * S, y1 + 1.5 * S), fill=(250, 250, 248, 255))
         if fill == "top" and hi - lo > 0.5:
             wedge = Image.new("RGBA", (n, n), (0, 0, 0, 0))
             wr = R * (RC - 0.09)
