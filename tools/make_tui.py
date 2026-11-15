@@ -131,7 +131,8 @@ def definitions():
     out = [{"key": "knob overlay", "value": overlay}]
     for t in THEMES:
         pre = "" if t == THEMES[0] else t + "_"
-        out += [{"key": pre + "vknob", "value": knob_def(pre + "knob_vv.png")}, {"key": pre + "vknob_red", "value": knob_def(pre + "knob_vv_red.png")}]
+        out += [{"key": pre + "vknob", "value": knob_def(pre + "knob_vv.png")}, {"key": pre + "vknob_red", "value": knob_def(pre + "knob_vv_red.png")},
+                {"key": pre + "vknob_bi", "value": knob_def(pre + "knob_vv_bi.png")}]
     for w, h in sorted(FIELDS):      # an invisible value slider over a live name: the data wheel, a Q-Link or a drag steps it
         ts = {"version": 1, "font": {"version": 1, "name": "Roboto", "style": "Regular", "height": 20.0}, "colour": "00000000",
               "justification": "horizontallyCentred verticallyCentred", "case": "Original"}
@@ -217,7 +218,9 @@ class Page:
         red = key in RED_KNOBS if red is None else red
         if cap:
             A.caption(self.art, cx, cy - 57, cap, size=20, width=114)
-        self.kids.append(entry(key, tag("vknob_red" if red else "vknob"), {"version": 1, "handleName": "Data"},
+        p = PARAMS.get(key, {})
+        bi = "options" not in p and p.get("min", 0) < 0 < p.get("max", 0)     # a -64 .. +63 value: the ring fills from the top centre
+        self.kids.append(entry(key, tag("vknob_red" if red else "vknob_bi" if bi else "vknob"), {"version": 1, "handleName": "Data"},
                                "%d %d %d %d" % (cx - KNOB // 2, cy - KNOB // 2, KNOB, KNOB), remap=P(key), focus="Yes"))
         self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40), key, 29))
         self.pos[key] = (cx - 57, cy - box[0], cx + 57, cy + box[1])
@@ -778,9 +781,9 @@ def preview(pages, arts, defs, open_list=None, sub=0, suffix="", keyboard=False)
                 continue
             if (kb in hs) != keyboard and (keyboard or kb in hs):
                 continue
-            if cd["type"] in ("vknob", "vknob_red"):
-                st = Image.open(os.path.join(OUT, "knob_vv_red.png" if cd["type"] == "vknob_red" else "knob_vv.png"))
-                fr = 70 if cd["type"] == "vknob_red" else 50
+            if cd["type"] in ("vknob", "vknob_red", "vknob_bi"):
+                st = Image.open(os.path.join(OUT, {"vknob": "knob_vv.png", "vknob_red": "knob_vv_red.png", "vknob_bi": "knob_vv_bi.png"}[cd["type"]]))
+                fr = {"vknob": 45, "vknob_red": 85, "vknob_bi": 70}[cd["type"]]
                 im.alpha_composite(st.crop((0, KNOB * fr, KNOB, KNOB * (fr + 1))).convert("RGBA"), (x, y))
             elif cd["type"] == "Image" and keyboard:
                 im.alpha_composite(Image.open(os.path.join(OUT, cd["data"]["image"])).convert("RGBA"), (x, y))
@@ -818,6 +821,7 @@ def build_pass():
     A.set_theme(THEME)
     save(A.knob_strip(KNOB), "knob_vv.png")
     save(A.knob_strip(KNOB, red=True), "knob_vv_red.png")
+    save(A.knob_strip(KNOB, bipolar=True), "knob_vv_bi.png")
     pages, arts, tabs = [], {}, []
     for fn, (name, make) in enumerate(PAGES):
         pg = make(fn)
