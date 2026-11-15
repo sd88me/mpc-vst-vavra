@@ -27,7 +27,7 @@ mkdir -p "$pf/vavra"; cp -r "$ROMS" "$pf/vavra/roms"; cp plugin.json "$pf/"
 [ -f data/sounds.dat ] && cp data/sounds.dat "$pf/vavra/"             # the ROM's sound cache (made by a first boot): skips the harvest
 [ -d "${VAVRA_BANKS:-data/banks}" ] && cp -r "${VAVRA_BANKS:-data/banks}" "$pf/vavra/banks"
 set +e
-VAVRA_REC="${VAVRA_REC:-}" MPC_PLUGIN_FOLDER="$pf" VAVRA_LOG="$T/engine.log" ASAN_OPTIONS=detect_leaks=1 "$T/vavratest" tests/data/legacy-0.1.0.chunk > "$T/log.txt" 2>&1
+VAVRA_DBG_SYSEX="${VAVRA_DBG_SYSEX:-}" VAVRA_REC_SET="${VAVRA_REC_SET:-}" VAVRA_OUTLOG="${VAVRA_OUTLOG:-}" VAVRA_REC="${VAVRA_REC:-}" MPC_PLUGIN_FOLDER="$pf" VAVRA_LOG="$T/engine.log" ASAN_OPTIONS=detect_leaks=1 "$T/vavratest" tests/data/legacy-0.1.0.chunk > "$T/log.txt" 2>&1
 st=$?
 grep -E '^(== |  ok   |  FAIL |OK$|FAILED|[A-DUW]: opened|    \(|    [A-Za-z0-9_]+ host )|ERROR: |runtime error' "$T/log.txt" | tail -${TAIL:-120}
 exit $st

@@ -56,7 +56,7 @@ static std::vector<float>* g_rec;     // VAVRA_REC=<dir>: what run() renders, wr
 static void recWav(const char* name, const std::vector<float>& v, int sr)
 {
     const char* dir = std::getenv("VAVRA_REC");
-    if (!dir || v.empty()) return;
+    if (!dir || !*dir || v.empty()) return;
     FILE* f = std::fopen((std::string(dir) + "/" + name + ".wav").c_str(), "wb");
     if (!f) return;
     const uint32_t data = (uint32_t)(v.size() * 4), riff = 36 + data, fmt = 16, rate = (uint32_t)sr, bps = rate * 8;
@@ -169,10 +169,17 @@ int main(int argc, char** argv)
 
     std::printf("== sound\n");
     std::vector<float> rec;
+    if (const char* sv = std::getenv("VAVRA_REC_SET"); sv && *sv)   // recording: key=value applied first (e.g. AmpVolume=80)
+    {
+        std::string kv(sv), k = kv.substr(0, kv.find('=')), v = kv.substr(kv.find('=') + 1);
+        a->setParameter(a, idx(k.c_str()), norm(idx(k.c_str()), (float)std::atof(v.c_str())));
+        settle(a, 60);
+        std::printf("    (recording with %s = %s)\n", k.c_str(), eng(a, k.c_str()).c_str());
+    }
     g_rec = &rec;
     run(a, 200, {{0x90, 60, 100}});
     const double on = g_rms;
-    if (std::getenv("VAVRA_REC"))                  // recording: hold the note ~3 s, then a C minor chord ~3 s
+    if (std::getenv("VAVRA_REC") && *std::getenv("VAVRA_REC"))   // recording: hold the note ~3 s, then a C minor chord ~3 s
     {
         run(a, 800);
         run(a, 100, {{0x80, 60, 0}});

@@ -682,6 +682,13 @@ void emu_main(Inst *in) {
         if (!have_state) ask_for_sound(in->bank.load(), in->preset.load());
     }
     in->set_status("Warming up...");
+    if (const char *dbg = getenv("VAVRA_DBG_SYSEX"); dbg && *dbg) {   // experiments: hex sysex messages separated by ';', sent once at boot
+        std::vector<uint8_t> m;
+        for (const char *c = dbg;; c++) {
+            if (*c == ';' || !*c) { if (!m.empty()) { synthLib::SMidiEvent e(synthLib::MidiEventSource::Host); e.sysex.assign(m.begin(), m.end()); plugin->addMidiEvent(e); xlog("[dbg] sysex %zu bytes", m.size()); m.clear(); } if (!*c) break; }
+            else if (isxdigit((unsigned char)*c) && isxdigit((unsigned char)c[1])) { m.push_back((uint8_t)strtol(std::string(c, 2).c_str(), nullptr, 16)); c++; }
+        }
+    }
     for (int i = 0; (i < kTargetFill / kBlock + 2 || (want.active && i < 4000)) && !in->stop; i++) produce(true);
     in->ready = true;
     in->set_status("Ready - ROM loaded");
