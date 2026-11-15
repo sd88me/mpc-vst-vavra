@@ -26,6 +26,7 @@ GESTURE = "Instant"
 KNOB = 76
 BIG = 96                                             # MAIN's perf knobs
 KNOB_SIZES = (KNOB, BIG)
+DIAL_FRAMES = 64                                     # the dial's strip stays under the MPC's 16384 px image height (250 x 64)
 DIAL = 250
 
 
@@ -128,10 +129,10 @@ FIELD_KEY = {"bank_name": "bank_index", "preset_name": "preset"}
 
 
 def definitions():
-    def knob_def(strip, size=KNOB):
+    def knob_def(strip, size=KNOB, frames=101):
         return component([
             entry("focus", "Focus", focus_style(), "-6 -6 %d %d" % (size + 12, size + 12), visible="WhenFocussed"),
-            entry("knob", "Knob", {"version": 3, "knobType": "FilmStrip", "filmStrip": strip, "numFrames": 101, "invert": False,
+            entry("knob", "Knob", {"version": 3, "knobType": "FilmStrip", "filmStrip": strip, "numFrames": frames, "invert": False,
                                    "dragOrientation": "Vertical", "handleName": "Data"}, "0 0 %d %d" % (size, size)),
         ], actions=[act("Mouse Down", "Q-Link"), act("Double Click", "Show Overlay", "knob overlay"), act("Enter Pressed", "Show Overlay", "knob overlay")])
     overlay = component([entry("overlay", "KnobOverlay", Obj(
@@ -146,7 +147,7 @@ def definitions():
         for size in KNOB_SIZES:
             for kind in ("", "_red", "_bi"):
                 out.append({"key": pre + kname(kind, size), "value": knob_def(pre + kname(kind, size) + ".png", size)})
-        out.append({"key": pre + "vdial", "value": knob_def(pre + "dial_vv.png", DIAL)})
+        out.append({"key": pre + "vdial", "value": knob_def(pre + "dial_vv.png", DIAL, DIAL_FRAMES)})
     A.set_theme(THEMES[0])
     for w, h in sorted(FIELDS):      # an invisible value slider over a live name: the data wheel, a Q-Link or a drag steps it
         ts = {"version": 1, "font": {"version": 1, "name": "Roboto", "style": "Regular", "height": 20.0}, "colour": "00000000",
@@ -849,7 +850,7 @@ def preview(pages, arts, defs, open_list=None, sub=0, suffix="", keyboard=False)
             if (kb in hs) != keyboard and (keyboard or kb in hs):
                 continue
             if cd["type"].endswith("vdial"):
-                im.alpha_composite(Image.open(os.path.join(OUT, cd["type"][:-5] + "dial_vv.png")).crop((0, DIAL * 30, DIAL, DIAL * 31)).convert("RGBA"), (x, y))
+                im.alpha_composite(Image.open(os.path.join(OUT, cd["type"][:-5] + "dial_vv.png")).crop((0, DIAL * 19, DIAL, DIAL * 20)).convert("RGBA"), (x, y))
             elif "vknob" in cd["type"]:
                 st = Image.open(os.path.join(OUT, cd["type"] + ".png"))
                 fr = 85 if "_red" in cd["type"] else 70 if "_bi" in cd["type"] else 45
@@ -892,7 +893,7 @@ def build_pass():
         save(A.knob_strip(size), kname("", size) + ".png")
         save(A.knob_strip(size, red=True), kname("_red", size) + ".png")
         save(A.knob_strip(size, bipolar=True), kname("_bi", size) + ".png")
-    save(A.dial_strip(DIAL), "dial_vv.png")
+    save(A.dial_strip(DIAL, frames=DIAL_FRAMES), "dial_vv.png")
     pages, arts, tabs = [], {}, []
     for fn, (name, make) in enumerate(PAGES):
         pg = make(fn)

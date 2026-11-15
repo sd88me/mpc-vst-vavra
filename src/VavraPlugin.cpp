@@ -59,7 +59,7 @@ extern "C" void vavra_render_float(void* inst, float* out, int frames);   // src
 #endif
 #define VAVRA_FOURCC(...) MPC_FOURCC(__VA_ARGS__)   // expands VAVRA_UID before MPC_FOURCC counts its arguments
 #ifndef VAVRA_VERSION
-#define VAVRA_VERSION 2000
+#define VAVRA_VERSION 10000
 #endif
 
 namespace {

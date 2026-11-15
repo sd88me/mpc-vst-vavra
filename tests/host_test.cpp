@@ -145,7 +145,7 @@ int main(int argc, char** argv)
     CHECK(a->uniqueID == (VstInt32)0x56617651, "uid VavQ (%08x)", (unsigned)a->uniqueID);
     CHECK(!std::strcmp(name, VAVRA_EXPECT_NAME), "name \"%s\"", name);
     CHECK(a->numParams == 630, "630 params: 0.1.0's 583 + RANDOM, the naming keyboard, the skin switch and SKIN (%d)", a->numParams);
-    CHECK(a->dispatcher(a, effGetVendorVersion, 0, 0, nullptr, 0) == 2000, "version 2000");
+    CHECK(a->dispatcher(a, effGetVendorVersion, 0, 0, nullptr, 0) == 10000, "version 10000");
     {
         int bad = 0, i = 0;
         FILE* f = std::fopen("params.lock", "r");

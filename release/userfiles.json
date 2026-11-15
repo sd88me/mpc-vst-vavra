@@ -1,0 +1,50 @@
+[
+  {
+    "path": "vavra/roms",
+    "label": "microQ ROM",
+    "description": "Vavra needs the firmware of your own Waldorf microQ: a 512 kB flash dump (.bin), or the microQ OS 2.23 update file (mq_2_23.mid).",
+    "hint": "Any file name works. The OS update file has no factory sounds: banks A to C then start empty.",
+    "rules": [
+      {
+        "label": "microQ flash ROM (512 kB)",
+        "ext": [".bin"],
+        "size": 524288,
+        "unverified": true,
+        "note": "The right size for a microQ flash dump. Vavra checks the firmware when it loads."
+      },
+      {
+        "label": "microQ OS update (.mid)",
+        "ext": [".mid"],
+        "size_min": 300000,
+        "size_max": 420000,
+        "header": "MThd",
+        "unverified": true,
+        "note": "Looks like a microQ OS update. Vavra checks it when it loads."
+      }
+    ]
+  },
+  {
+    "path": "vavra/banks",
+    "label": "microQ sound sets",
+    "description": "Optional: your own microQ sound sets as SysEx (.syx) or MIDI (.mid) files with single sound dumps. Each one adds banks of 100 sounds after ROM banks A, B and C.",
+    "hint": "Waldorf's factory sets 2000 and 2001 and the Forum sets work; subfolders are fine.",
+    "rules": [
+      {
+        "label": "microQ SysEx dump",
+        "ext": [".syx"],
+        "size_min": 200,
+        "size_max": 4194304,
+        "header_hex": "f0"
+      },
+      {
+        "label": "MIDI file with SysEx dumps",
+        "ext": [".mid"],
+        "size_min": 300,
+        "size_max": 4194304,
+        "header": "MThd",
+        "unverified": true,
+        "note": "Vavra uses only the microQ sound dumps inside it; it checks them when it loads."
+      }
+    ]
+  }
+]
