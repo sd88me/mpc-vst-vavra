@@ -200,7 +200,7 @@ static const PSpec g_pspecs[] = {
     {"engine_stats", "STATS", 0.0f, 1023.0f, 0.0f, 514, nullptr, 0, -1, 0.0f},
     {"lcd1", "LCD 1", 0.0f, 1023.0f, 0.0f, 514, nullptr, 0, -1, 0.0f},
     {"lcd2", "LCD 2", 0.0f, 1023.0f, 0.0f, 514, nullptr, 0, -1, 0.0f},
-    {"gain", "GAIN %", 10.0f, 400.0f, 100.0f, 1024, nullptr, 0, -1, 0.0f},
+    {"gain", "Output Gain", 10.0f, 400.0f, 100.0f, 1024, nullptr, 0, -1, 0.0f},
     {"init_patch", "RELOAD", 0.0f, 1.0f, 0.0f, 513, nullptr, 0, -1, 0.0f},
     {"O1Octave", "Osc 1 Octave", -4.0f, 4.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
     {"O1Semi", "Osc 1 Semi", -12.0f, 12.0f, -12.0f, 1024, nullptr, 0, -1, 0.0f},

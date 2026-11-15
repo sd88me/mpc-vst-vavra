@@ -24,7 +24,14 @@ UI_STEPS = len(POPUPS) + 1                           # 0 closed, k + 1 = pick-li
 TUI_PX = 0.62                                        # a Label draws its text at about 0.62 x its height (Maze, on the device)
 GESTURE = "Instant"
 KNOB = 76
+BIG = 96                                             # MAIN's perf knobs
+KNOB_SIZES = (KNOB, BIG)
 DIAL = 170
+
+
+def kname(kind, size):
+    """the component (and film strip) of a knob: kind "", "_red" or "_bi"; sizes other than KNOB carry their size"""
+    return "vknob%s%s" % (kind, "" if size == KNOB else str(size))
 CLEAR = "clear.png"
 # The skin switch (parameter "skin", global): every page is built once per theme and the passes are merged into one TUI.json, each entry
 # shown only while skin == its theme's index. VAVRA_THEMES=microq,alt builds both; until the second theme is drawn, one pass (no doubling).
@@ -132,9 +139,10 @@ def definitions():
     out = [{"key": "knob overlay", "value": overlay}]
     for t in THEMES:
         pre = "" if t == THEMES[0] else t + "_"
-        out += [{"key": pre + "vknob", "value": knob_def(pre + "knob_vv.png")}, {"key": pre + "vknob_red", "value": knob_def(pre + "knob_vv_red.png")},
-                {"key": pre + "vknob_bi", "value": knob_def(pre + "knob_vv_bi.png")},
-                {"key": pre + "vdial", "value": knob_def(pre + "dial_vv.png", DIAL)}]
+        for size in KNOB_SIZES:
+            for kind in ("", "_red", "_bi"):
+                out.append({"key": pre + kname(kind, size), "value": knob_def(pre + kname(kind, size) + ".png", size)})
+        out.append({"key": pre + "vdial", "value": knob_def(pre + "dial_vv.png", DIAL)})
     for w, h in sorted(FIELDS):      # an invisible value slider over a live name: the data wheel, a Q-Link or a drag steps it
         ts = {"version": 1, "font": {"version": 1, "name": "Roboto", "style": "Regular", "height": 20.0}, "colour": "00000000",
               "justification": "horizontallyCentred verticallyCentred", "case": "Original"}
@@ -216,15 +224,17 @@ class Page:
         self.subs = [[]]              # per sub-tab: [(keys, rect)]
 
     # controls
-    def knob(self, key, cx, cy, cap, red=None, box=(71, 72)):
+    def knob(self, key, cx, cy, cap, red=None, box=None, size=KNOB):
         red = key in RED_KNOBS if red is None else red
+        g = size - KNOB                     # a bigger knob moves its caption and value out by the difference
+        box = box or (71 + g // 2, 72 + g // 2)
         if cap:
-            A.caption(self.art, cx, cy - 57, cap, size=20, width=114)
+            A.caption(self.art, cx, cy - 57 - g // 2, cap, size=20 + g // 10, width=114 + g)
         p = PARAMS.get(key, {})
         bi = "options" not in p and p.get("min", 0) < 0 < p.get("max", 0)     # a -64 .. +63 value: the ring fills from the top centre
-        self.kids.append(entry(key, tag("vknob_red" if red else "vknob_bi" if bi else "vknob"), {"version": 1, "handleName": "Data"},
-                               "%d %d %d %d" % (cx - KNOB // 2, cy - KNOB // 2, KNOB, KNOB), remap=P(key), focus="Yes"))
-        self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40), key, 29))
+        self.kids.append(entry(key, tag(kname("_red" if red else "_bi" if bi else "", size)), {"version": 1, "handleName": "Data"},
+                               "%d %d %d %d" % (cx - size // 2, cy - size // 2, size, size), remap=P(key), focus="Yes"))
+        self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40 + g // 2), key, 29 + g // 8))
         self.pos[key] = (cx - 57, cy - box[0], cx + 57, cy + box[1])
 
     def pick(self, key, cx, cy, w, cap):
@@ -320,56 +330,65 @@ def display_row(pg, x0, y0, y1, fields, size, aw=40):
 
 # ---- the pages ---------------------------------------------------------------------------------------------------------------
 def page_main(fn):
-    """MAIN, laid out like the microQ's front: the keys in a blue-outlined panel joined to the blue bar (where Inst 1-4 sit), the bar with
-    the badge, the LCD (the microQ's two lines, bank | sound with arrows, status | CPU) and the red data dial (it steps the sound, as in
-    the microQ's Play mode), PANIC where Play sits, the blue oval sweeping round, the perf knobs under the bar joined to it by blue lines,
-    SKIN where Multimode / Peek sit."""
+    """MAIN, laid out like the microQ's front: the six keys in a blue-outlined panel centred over the LCD and joined to the blue bar
+    (where Inst 1-4 sit), OUTPUT (volume, output gain) top left, the bar with theusualsuspects' badge, the LCD (the microQ's two lines,
+    bank | sound with arrows, status | CPU) and the red data dial (it steps the sound, as in the microQ's Play mode), the blue oval, and
+    the perf knobs under the bar, big, joined to it by blue lines."""
     pg = Page("MAIN", fn)
     d = ImageDraw.Draw(pg.art)
-    d.ellipse((-20, 22, 1300, 760), outline=A.BLUE + (255,), width=3)                       # the oval (its bottom below the page)
-    d.rounded_rectangle((250, 6, 790, 150), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)   # the key panel
-    A.band(pg.art, 0, 120, 1280, 248)
-    d.rectangle((253, 118, 787, 124), fill=A.BLUE + (255,))                                # the panel opens into the bar
-    for i, (k, cap) in enumerate((("random_patch", "RANDOM"), ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("init_patch", "RELOAD"))):
-        pg.key(k, 330 + i * 127, 64, cap)
-    A.wordmark(pg.art, 34, 146, 58)
-    x0, x1, y0, y1 = 270, 900, 130, 238
+    BY0, BY1 = 146, 272                                                                    # the blue bar
+    x0, x1 = 300, 930                                                                      # the LCD
+    mid = (x0 + x1) // 2
+    d.ellipse((-20, 30, 1300, 800), outline=A.BLUE + (255,), width=3)                       # the oval (its bottom below the page)
+    pw = 6 * 112 + 40
+    d.rounded_rectangle((mid - pw // 2, 6, mid + pw // 2, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)
+    d.rounded_rectangle((12, 6, 262, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)   # the output panel
+    A.band(pg.art, 0, BY0, 1280, BY1)
+    d.rectangle((mid - pw // 2 + 3, BY0 - 2, mid + pw // 2 - 3, BY0 + 4), fill=A.BLUE + (255,))   # the panels open into the bar
+    d.rectangle((15, BY0 - 2, 259, BY0 + 4), fill=A.BLUE + (255,))
+    keys = (("all_notes_off", "PANIC"), ("init_patch", "RELOAD"), ("random_patch", "RANDOM"), ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("skin", "SKIN"))
+    for i, (k, cap) in enumerate(keys):
+        pg.key(k, mid - pw // 2 + 20 + 56 + i * 112, 72, cap, w=108)
+    # output, top left: its own panel joined to the bar, like the keys'
+    pg.knob("AmpVolume", 76, 78, "Volume", box=(64, 66))
+    pg.knob("gain", 198, 78, "Output Gain", box=(64, 66))
+    # the bar: badge, LCD, data dial
+    A.wordmark(pg.art, 26, BY0 + 10, 250)
+    y0, y1 = BY0 + 10, BY1 - 10
     A.lcd(pg.art, x0, y0, x1, y1, cells=0)
     d = ImageDraw.Draw(pg.art)
-    d.line((x0 + 6, 182, x1 - 6, 182), fill=A.LCD_DK + (255,), width=2)
-    d.line((x0 + 6, 211, x1 - 6, 211), fill=A.LCD_DK + (255,), width=1)
-    pg.kids.append(label("%d 131 %d 26" % (x0 + 12, x1 - x0 - 24), "lcd1", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
-    pg.kids.append(label("%d 156 %d 26" % (x0 + 12, x1 - x0 - 24), "lcd2", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
-    display_row(pg, x0, 183, 211, [(540, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 22, aw=30)
-    display_row(pg, x0, 212, 238, [(640, "loading_status", None, None), (x1, "engine_stats", None, None)], 18)
-    # the red data dial: the sound
-    dx, dy = 1024, 184
+    r1, r2, r3 = y0 + 52, y0 + 81, y1
+    d.line((x0 + 6, r1, x1 - 6, r1), fill=A.LCD_DK + (255,), width=2)
+    d.line((x0 + 6, r2, x1 - 6, r2), fill=A.LCD_DK + (255,), width=1)
+    pg.kids.append(label("%d %d %d 26" % (x0 + 12, y0 + 1, x1 - x0 - 24), "lcd1", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    pg.kids.append(label("%d %d %d 26" % (x0 + 12, y0 + 26, x1 - x0 - 24), "lcd2", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    display_row(pg, x0, r1 + 1, r2, [(570, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 22, aw=30)
+    display_row(pg, x0, r2 + 1, r3, [(670, "loading_status", None, None), (x1, "engine_stats", None, None)], 18)
+    dx, dy = 1080, (BY0 + BY1) // 2
     pg.kids.append(entry("preset dial", tag("vdial"), {"version": 1, "handleName": "Data"}, "%d %d %d %d" % (dx - DIAL // 2, dy - DIAL // 2, DIAL, DIAL),
                          remap=P("preset"), focus="Yes"))
-    pg.key("all_notes_off", 1176, 286, "PANIC")
-    # the perf knobs under the bar, joined to it by blue lines with pointer tabs over each knob
-    ky = 446
-    groups = [("filter 1", [("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay")], 92),
-              ("amp & mod", [("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix")], 556),
-              ("output", [("AmpVolume", "Volume"), ("gain", "Gain %")], 1020)]
+    # the perf knobs under the bar, big, joined to it by blue lines with pointer tabs over each knob
+    ky = 488
+    groups = [("filter 1", [("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay")], 120),
+              ("amp & mod", [("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix")], 740)]
     for title, knobs, gx in groups:
-        xs = [gx + i * 112 for i in range(len(knobs))]
-        mid = (xs[0] + xs[-1]) // 2
-        d.line((mid, 248, mid, 352), fill=A.BLUE + (255,), width=3)
-        d.line((xs[0], 352, xs[-1], 352), fill=A.BLUE + (255,), width=3)
+        xs = [gx + i * 140 for i in range(len(knobs))]
+        gm = (xs[0] + xs[-1]) // 2
+        d.line((gm, BY1, gm, 368), fill=A.BLUE + (255,), width=3)
+        d.line((xs[0], 368, xs[-1], 368), fill=A.BLUE + (255,), width=3)
         for x in xs:
-            d.line((x, 352, x, 362), fill=A.BLUE + (255,), width=3)
-            d.polygon([(x - 7, 362), (x + 7, 362), (x, 370)], fill=A.BLUE + (255,))
+            d.line((x, 368, x, 376), fill=A.BLUE + (255,), width=3)
+            d.polygon([(x - 7, 376), (x + 7, 376), (x, 384)], fill=A.BLUE + (255,))
         t = A.text_img(title.upper(), 16, A.WHITE, slant=0.2)
         tw = t.width + 22
-        d.rounded_rectangle((mid - tw // 2, 288, mid + tw // 2, 314), 7, fill=A.BLUE + (255,))
-        pg.art.alpha_composite(t, (mid - t.width // 2, 301 - t.height // 2))
+        d.rounded_rectangle((gm - tw // 2, 304, gm + tw // 2, 330), 7, fill=A.BLUE + (255,))
+        pg.art.alpha_composite(t, (gm - t.width // 2, 317 - t.height // 2))
         d = ImageDraw.Draw(pg.art)
         for (k, c), x in zip(knobs, xs):
-            pg.knob(k, x, ky, c, box=(64, 72))
+            pg.knob(k, x, ky, c, size=BIG, box=(98, 92))
         pg.block([k for k, _ in knobs])
-    pg.key("skin", 1176, 572, "SKIN")
-    pg.block(["bank_index", "preset"], rect=(266, 182, 904, 212))
+    pg.block(["AmpVolume", "gain"])
+    pg.block(["bank_index", "preset"], rect=(x0 - 4, r1, x1 + 4, r2 + 1))
     keyboard(pg)
     return pg
 
@@ -804,10 +823,10 @@ def preview(pages, arts, defs, open_list=None, sub=0, suffix="", keyboard=False)
                 continue
             if cd["type"] == "vdial":
                 im.alpha_composite(Image.open(os.path.join(OUT, "dial_vv.png")).crop((0, DIAL * 30, DIAL, DIAL * 31)).convert("RGBA"), (x, y))
-            elif cd["type"] in ("vknob", "vknob_red", "vknob_bi"):
-                st = Image.open(os.path.join(OUT, {"vknob": "knob_vv.png", "vknob_red": "knob_vv_red.png", "vknob_bi": "knob_vv_bi.png"}[cd["type"]]))
-                fr = {"vknob": 45, "vknob_red": 85, "vknob_bi": 70}[cd["type"]]
-                im.alpha_composite(st.crop((0, KNOB * fr, KNOB, KNOB * (fr + 1))).convert("RGBA"), (x, y))
+            elif cd["type"].startswith("vknob"):
+                st = Image.open(os.path.join(OUT, cd["type"] + ".png"))
+                fr = 85 if "_red" in cd["type"] else 70 if "_bi" in cd["type"] else 45
+                im.alpha_composite(st.crop((0, w * fr, w, w * (fr + 1))).convert("RGBA"), (x, y))
             elif cd["type"] == "Image" and keyboard:
                 im.alpha_composite(Image.open(os.path.join(OUT, cd["data"]["image"])).convert("RGBA"), (x, y))
             elif cd["type"] == "Label":
@@ -842,9 +861,10 @@ def preview(pages, arts, defs, open_list=None, sub=0, suffix="", keyboard=False)
 def build_pass():
     """one theme's pages: art, widgets, Q-Link blocks"""
     A.set_theme(THEME)
-    save(A.knob_strip(KNOB), "knob_vv.png")
-    save(A.knob_strip(KNOB, red=True), "knob_vv_red.png")
-    save(A.knob_strip(KNOB, bipolar=True), "knob_vv_bi.png")
+    for size in KNOB_SIZES:
+        save(A.knob_strip(size), kname("", size) + ".png")
+        save(A.knob_strip(size, red=True), kname("_red", size) + ".png")
+        save(A.knob_strip(size, bipolar=True), kname("_bi", size) + ".png")
     save(A.dial_strip(DIAL), "dial_vv.png")
     pages, arts, tabs = [], {}, []
     for fn, (name, make) in enumerate(PAGES):

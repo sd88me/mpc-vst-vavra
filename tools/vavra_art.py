@@ -457,9 +457,23 @@ def lcd(im, x0, y0, x1, y1, cells=12):
         d.line((x0, y0 + i, x1, y0 + i), fill=(20, 60, 10, a))
 
 
-def wordmark(im, x, y, h=64):
-    """The plugin's own badge (not the hardware's logo): "Vavra" in panel yellow, oblique, on the blue band, with a small subtitle."""
-    t = text_img("Vavra", int(h * 1.05), YELLOW + (255,), slant=0.22)
-    im.alpha_composite(t, (x, y))
-    s = text_img("DSP56300 EMULATOR", 13, WHITE + (255,), bold=True, slant=0.15)
-    im.alpha_composite(s, (x + 8, y + t.height - 2))
+def wordmark(im, x, y, w=230):
+    """theusualsuspects' Vavra badge (gearmulator's mqDefault skin, GPL-3.0; skin/parts/logo.png, cut by tools/make_assets.py), recoloured
+    for the blue bar: the black "Vavra" script in panel yellow, its gold shadow in dark blue, the two gold lines of small print in white."""
+    src = Image.open(os.path.join(ROOT, "skin", "parts", "logo.png")).convert("RGBA")
+    W, Hh = src.size
+    out = Image.new("RGBA", src.size, (0, 0, 0, 0))
+    ps, po = src.load(), out.load()
+    for yy in range(Hh):
+        for xx in range(W):
+            r, g, b, a = ps[xx, yy]
+            if a < 8:
+                continue
+            small = yy < Hh * 0.30 or (yy < Hh * 0.52 and xx > W * 0.44)       # "theusualsuspects", "DSP56300 Emulator"
+            if r - b > 40:                                                     # gold
+                col = WHITE if small else BLUE_DK
+            else:                                                              # black: the script
+                col = YELLOW
+            po[xx, yy] = col + (a,)
+    h = int(Hh * w / W)
+    im.alpha_composite(out.resize((w, h), Image.LANCZOS), (x, y))

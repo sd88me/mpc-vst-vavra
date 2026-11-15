@@ -18,6 +18,7 @@ LOCK = [l.strip() for l in open(os.path.join(ROOT, "params.lock")) if l.strip()]
 REL = [l.rstrip("\n").split("\t") for l in open(os.path.join(ROOT, "vst", "released-0.1.0.tsv")) if l.strip()]
 NPOP = 146
 KB_CHARS = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM-"
+RENAME = {"gain": "Output Gain"}   # display names only (what the MPC shows on Q-Links and automation); keys, order and ranges stay
 APPENDED = [                     # (key, name, min, max, default, flags) appended after the released 583, in this order
     ("random_patch", "RANDOM", 0, 1, 0, 1 | 512),      # kMomentary | kNoAuto: the engine's verb, a random sound from every loaded bank (BANKS page)
     # the naming keyboard for +FAV (Profit-5's): the typed name (a text readout), the keyboard's visibility, its keys (kLocal)
@@ -107,7 +108,7 @@ for i, p in enumerate(P):
             check(i, k, lo, hi, d, 0)
     if k in ("bank_index", "preset", "favourite"):
         fl |= FL["kNoAuto"]
-    row(k, p["name"], lo, hi, d, fl, ch, n, st, sd)
+    row(k, RENAME.get(k, p["name"]), lo, hi, d, fl, ch, n, st, sd)
 
 row("ui_open", "Pick List", 0, len(popups), 0, FL["kUi"] | FL["kNoAuto"])
 for j in range(1, len(popups)):
