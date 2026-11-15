@@ -18,6 +18,7 @@ LOCK = [l.strip() for l in open(os.path.join(ROOT, "params.lock")) if l.strip()]
 REL = [l.rstrip("\n").split("\t") for l in open(os.path.join(ROOT, "vst", "released-0.1.0.tsv")) if l.strip()]
 NPOP = 146
 APPENDED = [                     # (key, name, min, max, default, flags) appended after the released 583, in this order
+    ("random_patch", "RANDOM", 0, 1, 0, 1 | 512),      # kMomentary | kNoAuto: the engine's verb, a random sound from every loaded bank (BANKS page)
 ]
 
 keys = [p["key"] for p in P]

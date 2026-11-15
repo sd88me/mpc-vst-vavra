@@ -113,42 +113,84 @@ def well(im, x0, y0, x1, y1, r=6):
 
 
 # ---- knobs -------------------------------------------------------------------------------------------------------------------
-def knob_strip(size=64, frames=101, red=False):
-    """The editor's knob: a black rubber cap on a darker skirt with a fine grip edge, lit from the upper left, a white pointer line
-    from near the centre to the rim; -135 .. +135 degrees over the frames. red: the cutoff's red cap with a cream pointer."""
+def _knob_base(size, red):
+    """The cap and skirt, shaded per pixel at 4x (light from the upper left): a ribbed black skirt like the editor's knobs, a dark
+    groove, a glossy domed cap with a broad specular highlight. The light does not turn with the knob, so one base serves every frame."""
     S = 4
+    n = size * S
+    R = n / 2.0 - 3 * S                     # the skirt's outer radius (room for the shadow)
+    cx = cy = n / 2.0 - 1.5 * S
+    L = (-0.45, -0.62, 0.64)
+    ln = math.sqrt(sum(v * v for v in L))
+    L = tuple(v / ln for v in L)
+    H = (L[0], L[1], L[2] + 1.0)            # half vector (viewer on +z)
+    hn = math.sqrt(sum(v * v for v in H))
+    H = tuple(v / hn for v in H)
+    im = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    px = im.load()
+    ribs = 44
+    capc = (150, 22, 18) if red else (26, 26, 28)
+    for y in range(n):
+        for x in range(n):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy) / R
+            if r > 1.0:
+                continue
+            th = math.atan2(dy, dx)
+            ux, uy = math.cos(th), math.sin(th)
+            if r > 0.70:                                    # skirt: a cone with ribs
+                t = math.sin(ribs * th)
+                nr, nt, nz = 0.55, 0.55 * t, 0.62
+                nx, ny = nr * ux - nt * uy, nr * uy + nt * ux
+                if r > 0.95:                                # the rounded outer edge falls away
+                    k = (r - 0.95) / 0.05
+                    nx, ny, nz = nx + ux * k, ny + uy * k, nz * (1 - 0.7 * k)
+                nl = math.sqrt(nx * nx + ny * ny + nz * nz)
+                nx, ny, nz = nx / nl, ny / nl, nz / nl
+                dif = max(0.0, nx * L[0] + ny * L[1] + nz * L[2])
+                spc = max(0.0, nx * H[0] + ny * H[1] + nz * H[2]) ** 24
+                g = 12 + 70 * dif + 150 * spc
+                col = (g, g, g + 3)
+            elif r > 0.655:                                 # the groove between skirt and cap
+                g = 6 + 10 * (1 - abs(r - 0.68) / 0.03)
+                col = (g, g, g)
+            else:                                           # the cap: a shallow dome, glossy
+                q = r / 0.655
+                nx, ny = ux * q * 0.42, uy * q * 0.42
+                nz = math.sqrt(max(0.0, 1 - nx * nx - ny * ny))
+                dif = max(0.0, nx * L[0] + ny * L[1] + nz * L[2])
+                spc = max(0.0, nx * H[0] + ny * H[1] + nz * H[2]) ** 40
+                spc2 = max(0.0, nx * H[0] + ny * H[1] + nz * H[2]) ** 6
+                base = [c * (0.55 + 0.6 * dif) for c in capc]
+                col = tuple(b + 210 * spc + 26 * spc2 for b in base)
+                if q > 0.93:                                # a fine bevel at the cap's edge
+                    col = tuple(c * 0.75 for c in col)
+            px[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
+    # the drop shadow on the panel, under everything
+    sh = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    ImageDraw.Draw(sh).ellipse((cx - R + 2 * S, cy - R + 4 * S, cx + R + 3 * S, cy + R + 5 * S), fill=(60, 40, 0, 120))
+    sh = sh.filter(ImageFilter.GaussianBlur(3 * S))
+    sh.alpha_composite(im)
+    return sh, (cx, cy, R)
+
+
+def knob_strip(size=76, frames=101, red=False):
+    """The editor's knob as a film strip: the shaded base plus a white pointer line on the cap (cream on the red cutoff cap),
+    -135 .. +135 degrees over the frames."""
+    S = 4
+    base, (cx, cy, R) = _knob_base(size, red)
     out = Image.new("RGBA", (size, size * frames), (0, 0, 0, 0))
-    R = size * S // 2
-    base = Image.new("RGBA", (size * S, size * S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(base)
-    c = R
-    d.ellipse((c - R + 3 * S, c - R + 6 * S, c + R - 1 * S, c + R), fill=(70, 50, 0, 110))                    # shadow on the panel
-    sk = R - 4 * S
-    d.ellipse((c - sk, c - sk, c + sk, c + sk), fill=(8, 8, 10, 255))                                            # skirt
-    for i in range(48):                                                                                          # grip edge
-        a = i * 2 * math.pi / 48
-        x0, y0 = c + math.cos(a) * (sk - 2 * S), c + math.sin(a) * (sk - 2 * S)
-        x1, y1 = c + math.cos(a) * (sk - 5 * S), c + math.sin(a) * (sk - 5 * S)
-        d.line((x0, y0, x1, y1), fill=(40, 40, 44, 255), width=S)
-    cap = sk - 7 * S
-    for i in range(cap, 0, -S):                                                                                  # cap: radial shade
-        t = i / cap
-        if red:
-            col = (int(150 + (1 - t) * 90), int(18 + (1 - t) * 30), int(14 + (1 - t) * 20), 255)
-        else:
-            g = int(22 + (1 - t) * 44)
-            col = (g, g, g + 2, 255)
-        o = int((1 - t) * 0.30 * cap)
-        d.ellipse((c - i - o, c - i - o, c + i - o, c + i - o), fill=col)
-    pointer = (250, 236, 214, 255) if red else (245, 245, 245, 255)
+    pointer = (255, 240, 220, 255) if red else (246, 246, 246, 255)
     for f in range(frames):
         im = base.copy()
-        dd = ImageDraw.Draw(im)
+        d = ImageDraw.Draw(im)
         a = math.radians(-135 + 270 * f / (frames - 1) - 90)
-        x0, y0 = c + math.cos(a) * cap * 0.28, c + math.sin(a) * cap * 0.28
-        x1, y1 = c + math.cos(a) * (cap - 1.5 * S), c + math.sin(a) * (cap - 1.5 * S)
-        dd.line((x0, y0, x1, y1), fill=pointer, width=int(3.2 * S))
-        dd.ellipse((x1 - 1.6 * S, y1 - 1.6 * S, x1 + 1.6 * S, y1 + 1.6 * S), fill=pointer)
+        x0, y0 = cx + math.cos(a) * R * 0.16, cy + math.sin(a) * R * 0.16
+        x1, y1 = cx + math.cos(a) * R * 0.60, cy + math.sin(a) * R * 0.60
+        d.line((x0 + S, y0 + S, x1 + S, y1 + S), fill=(0, 0, 0, 120), width=int(3.4 * S))       # its shadow on the cap
+        d.line((x0, y0, x1, y1), fill=pointer, width=int(3.4 * S))
+        d.ellipse((x1 - 1.7 * S, y1 - 1.7 * S, x1 + 1.7 * S, y1 + 1.7 * S), fill=pointer)
+        d.ellipse((x0 - 1.7 * S, y0 - 1.7 * S, x0 + 1.7 * S, y0 + 1.7 * S), fill=pointer)
         out.paste(im.resize((size, size), Image.LANCZOS), (0, f * size))
     return out
 

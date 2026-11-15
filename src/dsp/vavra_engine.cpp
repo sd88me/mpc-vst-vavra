@@ -23,6 +23,7 @@
 #include <strings.h>
 #include <exception>
 #include <memory>
+#include <random>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -958,6 +959,19 @@ void eng_set(void *p, const char *key, const char *val) {
     }
     if (!strcmp(key, "all_notes_off")) { if (press) { Cmd c; c.type = C_PANIC; in->push(std::move(c)); } return; }
     if (!strcmp(key, "init_patch")) { if (press) select_sound(in, in->bank, in->preset); return; }      // reload the stored sound
+    if (!strcmp(key, "random_patch")) {   // a random sound from every loaded bank (ROM and sound sets), never the current one
+        if (!press || in->failed) return;
+        int total = 0;
+        for (int b = 0; b < bank_count(in); b++) total += bank_size(in, b);
+        if (total < 2) return;
+        static std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
+        for (int tries = 0; tries < 8; tries++) {
+            int k = (int)(rng() % (unsigned)total), b = 0;
+            while (k >= bank_size(in, b)) k -= bank_size(in, b++);
+            if (b != in->bank || k != in->preset) { select_sound(in, b, k); return; }
+        }
+        return;
+    }
     if (!strcmp(key, "fav_save")) { if (press) { fav_save(in); in->bump(); } return; }
     if (!strcmp(key, "fav_delete")) { if (press) { fav_delete(in); in->bump(); } return; }
     if (!strcmp(key, "favourite")) { fav_pick(in, atoi(val)); return; }

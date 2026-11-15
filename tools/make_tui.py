@@ -23,7 +23,7 @@ UI_INDEX = LOCK.index(POPUPS[0] + "__open")          # 437: ui_open sits in the 
 UI_STEPS = len(POPUPS) + 1                           # 0 closed, k + 1 = pick-list k
 TUI_PX = 0.62                                        # a Label draws its text at about 0.62 x its height (Maze, on the device)
 GESTURE = "Instant"
-KNOB = 64
+KNOB = 76
 CLEAR = "clear.png"
 
 
@@ -203,11 +203,11 @@ class Page:
     # controls
     def knob(self, key, cx, cy, cap, red=None):
         red = key in RED_KNOBS if red is None else red
-        A.caption(self.art, cx, cy - 47, cap, width=112)
+        A.caption(self.art, cx, cy - 57, cap, size=20, width=114)
         self.kids.append(entry(key, "vknob_red" if red else "vknob", {"version": 1, "handleName": "Data"},
                                "%d %d %d %d" % (cx - KNOB // 2, cy - KNOB // 2, KNOB, KNOB), remap=P(key), focus="Yes"))
-        self.kids.append(label("%d %d 112 24" % (cx - 56, cy + 34), key, 23))
-        self.pos[key] = (cx - 56, cy - 60, cx + 56, cy + 60)
+        self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40), key, 29))
+        self.pos[key] = (cx - 57, cy - 71, cx + 57, cy + 72)
 
     def pick(self, key, cx, cy, w, cap):
         """a pick-list field: the caption on a blue tab at its left (the editor's "Source"), the choice live on the cream part"""
@@ -218,7 +218,7 @@ class Page:
         if cap:
             d.rectangle((x0 + 2, cy - 15, x0 + tab, cy + 15), fill=A.BLUE + (255,))
             d.text((x0 + tab // 2 + 1, cy), cap, font=A.F(15), fill=A.WHITE + (255,), anchor="mm")
-        self.kids.append(label("%d %d %d %d" % (x0 + tab + 8, cy - 17, w - tab - 44, 34), key, 22, hexcol(A.INK), "left verticallyCentred"))
+        self.kids.append(label("%d %d %d %d" % (x0 + tab + 8, cy - 17, w - tab - 44, 34), key, 25, hexcol(A.INK), "left verticallyCentred"))
         self.kids.append(entry(key + " field", "Button", {"version": 2, "onImage": CLEAR, "offImage": CLEAR, "buttonId": POPUPS.index(key) + 1,
                                                           "numButtonsInGroup": UI_STEPS, "handleName": "Data", "gestureBehaviour": GESTURE},
                                "%d %d %d %d" % (x0, cy - 17, w, 34), remap=P("ui_open")))
@@ -226,7 +226,7 @@ class Page:
         self.pos[key] = (x0, cy - 17, x0 + w, cy + 17)
 
     def switch(self, key, cx, cy, cap):
-        A.caption(self.art, cx, cy - 30, cap, width=120)
+        A.caption(self.art, cx, cy - 34, cap, size=20, width=120)
         button(self.kids, key, "%d %d 76 36" % (cx - 24, cy - 18), save(A.switch_image(True), "sw_on.png"), save(A.switch_image(False), "sw_off.png"))
         self.pos[key] = (cx - 56, cy - 42, cx + 56, cy + 20)
 
@@ -318,15 +318,15 @@ def page_main(fn):
     pg.key("fav_delete", 1150, 288, "- FAV")
     pg.readout("fav_text", 860, 330, 1232, 358, 19)
     # quick edit: three blocks
-    pg.section(16, 388, 470, 620, "filter 1")
+    pg.section(16, 388, 478, 620, "filter 1")
     for i, (k, c) in enumerate((("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay"))):
-        pg.knob(k, 82 + i * 108, 520, c)
-    pg.section(486, 388, 940, 620, "amp & mod")
+        pg.knob(k, 79 + i * 112, 520, c)
+    pg.section(490, 388, 952, 620, "amp & mod")
     for i, (k, c) in enumerate((("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix"))):
-        pg.knob(k, 552 + i * 108, 520, c)
-    pg.section(956, 388, 1264, 620, "output")
-    pg.knob("AmpVolume", 1056, 520, "Volume")
-    pg.knob("gain", 1164, 520, "Gain %")
+        pg.knob(k, 553 + i * 112, 520, c)
+    pg.section(964, 388, 1264, 620, "output")
+    pg.knob("AmpVolume", 1058, 520, "Volume")
+    pg.knob("gain", 1170, 520, "Gain %")
     for keys in (["F1Cutoff", "F1Resonance", "F1EnvMod", "FilterEnvDecay"], ["AmpEnvAttack", "AmpEnvRelease", "Lfo1Speed", "FX2Mix"], ["AmpVolume", "gain"]):
         pg.block(keys)
     pg.block(["bank_index", "preset"], rect=(296, 22, 1266, 64))
@@ -339,9 +339,9 @@ def page_banks(fn):
     pg = Page("BANKS", fn)
     A.band(pg.art, 0, 0, 1280, 74)
     display(pg, 20, 13, 800, 61, [([(320, "bank_name", "bank_prev", "bank_next"), (800, "preset_name", "preset_prev", "preset_next")], 26)])
-    pg.key("fav_save", 880, 38, "+ FAV", w=100, h=66, ink=A.WHITE)
-    pg.key("fav_delete", 990, 38, "- FAV", w=100, h=66, ink=A.WHITE)
-    pg.readout("fav_text", 1060, 21, 1264, 53, 19)
+    pg.key("random_patch", 900, 38, "RANDOM", w=116, h=66, ink=A.WHITE)
+    pg.key("fav_save", 1030, 38, "+ FAV", w=116, h=66, ink=A.WHITE)
+    pg.key("fav_delete", 1160, 38, "- FAV", w=116, h=66, ink=A.WHITE)
     layer = Image.new("RGBA", pg.art.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
     on_cache = {}
@@ -379,6 +379,7 @@ def page_banks(fn):
     page_stepper(158, 588, 276, 38, "bank_page_text", "bank_page_prev", "bank_page_next")
     pg.section(318, 80, 1270, 620, "sounds")
     page_stepper(1100, 100, 300, 34, "patch_page_text", "patch_page_prev", "patch_page_next")
+    pg.kids.append(label("470 84 300 32", "fav_text", 23, hexcol(A.BLUE_DK)))
     for c in range(3):
         for r in range(10):
             tile("patch_slot_%d" % (c * 10 + r + 1), 328 + c * 314, 126 + r * 49, 306, 44)
@@ -391,21 +392,21 @@ def osc_row(pg, n, y0, extra=None):
     """one oscillator: Shape / PWM / FM sources, then three blocks: pitch, wave, sub"""
     o = "O%d" % n
     pg.section(10, y0, 1270, y0 + 296, "oscillator %d" % n)
-    pg.pick(o + "Shape", 232, y0 + 66, 340, "SHAPE")
-    pg.pick(o + "PwmSource", 676, y0 + 66, 340, "PWM SOURCE")
-    pg.pick(o + "FmSource", 1080, y0 + 66, 300, "FM SOURCE")
-    ky = y0 + 196
+    pg.pick(o + "Shape", 244, y0 + 66, 350, "SHAPE")
+    pg.pick(o + "PwmSource", 704, y0 + 66, 350, "PWM SOURCE")
+    pg.pick(o + "FmSource", 1088, y0 + 66, 300, "FM SOURCE")
+    ky = y0 + 202
     pitch = [(o + "Octave", "Octave"), (o + "Semi", "Semitone"), (o + "Detune", "Detune"), (o + "BendRange", "Bend Range")]
     wave = [(o + "PulseWidth", "Pulsewidth"), (o + "Pwm", "PWM"), (o + "FmAmount", "FM Amount"), (o + "KeyTrack", "Keytrack")]
     for i, (k, c) in enumerate(pitch):
-        pg.knob(k, 76 + i * 104, ky, c)
+        pg.knob(k, 76 + i * 112, ky, c)
     for i, (k, c) in enumerate(wave):
-        pg.knob(k, 520 + i * 104, ky, c)
+        pg.knob(k, 536 + i * 112, ky, c)
     sub = []
     if n < 3:
         sub = [(o + "SubFreqDiv", "Sub Freq Div"), (o + "SubVolume", "Sub Level")]
         for i, (k, c) in enumerate(sub):
-            pg.knob(k, 964 + i * 104, ky, c)
+            pg.knob(k, 996 + i * 112, ky, c)
     if extra:
         extra(ky)
     return [k for k, _ in pitch], [k for k, _ in wave], [k for k, _ in sub]
@@ -413,7 +414,7 @@ def osc_row(pg, n, y0, extra=None):
 
 def page_osc12(fn):
     pg = Page("OSC 1/2", fn)
-    blocks = [osc_row(pg, 1, 6), osc_row(pg, 2, 320, lambda ky: pg.switch("Sync", 1196, ky + 4, "Sync to O3"))]
+    blocks = [osc_row(pg, 1, 6), osc_row(pg, 2, 320, lambda ky: pg.switch("Sync", 1204, ky + 4, "Sync to O3"))]
     for i, bl in enumerate(blocks):
         if i:
             pg.subtab()
@@ -429,16 +430,16 @@ def filter_row(pg, n, y0, extra=None):
     pg.pick(f + "ModSource", 480, y0 + 62, 300, "CUTOFF MOD")
     pg.pick(f + "FmSource", 800, y0 + 62, 280, "FM SOURCE")
     pg.pick(f + "PanModSource", 1110, y0 + 62, 280, "PAN MOD")
-    ky = y0 + 196
+    ky = y0 + 202
     a = [(f + "Cutoff", "Cutoff"), (f + "Resonance", "Resonance"), (f + "Drive", "Drive"), (f + "KeyTrack", "Keytrack")]
     b = [(f + "EnvMod", "Env Amount"), (f + "VelMod", "Env Velocity"), (f + "CutoffMod", "Mod Amount"), (f + "FmAmount", "FM Amount")]
     c = [(f + "Pan", "Panning"), (f + "PanMod", "Pan Amount")]
     for i, (k, cp) in enumerate(a):
-        pg.knob(k, 76 + i * 104, ky, cp)
+        pg.knob(k, 76 + i * 112, ky, cp)
     for i, (k, cp) in enumerate(b):
-        pg.knob(k, 520 + i * 104, ky, cp)
+        pg.knob(k, 536 + i * 112, ky, cp)
     for i, (k, cp) in enumerate(c):
-        pg.knob(k, 964 + i * 104, ky, cp)
+        pg.knob(k, 996 + i * 112, ky, cp)
     if extra:
         extra(ky)
     return [k for k, _ in a], [k for k, _ in b], [k for k, _ in c]
@@ -446,7 +447,7 @@ def filter_row(pg, n, y0, extra=None):
 
 def page_filters(fn):
     pg = Page("FILTERS", fn)
-    blocks = [filter_row(pg, 1, 6), filter_row(pg, 2, 320, lambda ky: pg.switch("FilterRouting", 1196, ky + 4, "Serial"))]
+    blocks = [filter_row(pg, 1, 6), filter_row(pg, 2, 320, lambda ky: pg.switch("FilterRouting", 1204, ky + 4, "Serial"))]
     for i, bl in enumerate(blocks):
         if i:
             pg.subtab()

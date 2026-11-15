@@ -125,7 +125,7 @@ int main(int argc, char** argv)
     a->dispatcher(a, effGetEffectName, 0, 0, name, 0);
     CHECK(a->uniqueID == (VstInt32)0x56617651, "uid VavQ (%08x)", (unsigned)a->uniqueID);
     CHECK(!std::strcmp(name, VAVRA_EXPECT_NAME), "name \"%s\"", name);
-    CHECK(a->numParams == 583, "583 params, as 0.1.0 (%d)", a->numParams);
+    CHECK(a->numParams == 584, "584 params: 0.1.0's 583 + RANDOM (%d)", a->numParams);
     CHECK(a->dispatcher(a, effGetVendorVersion, 0, 0, nullptr, 0) == 2000, "version 2000");
     {
         int bad = 0, i = 0;
@@ -140,7 +140,8 @@ int main(int argc, char** argv)
             i++;
         }
         if (f) std::fclose(f);
-        CHECK(f && bad == 0 && i == 583, "order = params.lock (%d keys, %d differ)", i, bad);
+        CHECK(f && bad == 0 && i == 584, "order = params.lock (%d keys, %d differ)", i, bad);
+        CHECK(!std::strcmp(g_pspecs[583].key, "random_patch"), "583 = random_patch (appended)");
         CHECK(!std::strcmp(g_pspecs[0].key, "bank_index") && !std::strcmp(g_pspecs[437].key, "ui_open"), "0 = bank_index, 437 = ui_open");
     }
     CHECK(a->numPrograms == 64, "64 programs (the favourite slots, as 0.1.0): %d", a->numPrograms);
@@ -246,6 +247,35 @@ int main(int argc, char** argv)
     a->setParameter(a, SLOT5, 0.0f);   // the host toggles a lit tile off: it stays lit
     settle(a);
     CHECK(a->getParameter(a, SLOT5) == 1.f && !disp(a, SLOT5).empty(), "a lit tile stays lit, shows \"%s\"", disp(a, SLOT5).c_str());
+
+    std::printf("== RANDOM\n");
+    {
+        const int RND = idx("random_patch");
+        int changes = 0, sets = 0;
+        for (int k = 0; k < 8; k++)
+        {
+            const int s0 = engi(a, "bank_index") * 1000 + engi(a, "preset");
+            a->setParameter(a, RND, 1.0f);
+            settle(a, 200);
+            vavra_dbg_tick(a);
+            const int s1 = engi(a, "bank_index") * 1000 + engi(a, "preset");
+            changes += s1 != s0;
+            sets += s1 >= 3000;
+            if (k == 0)
+                CHECK(a->getParameter(a, RND) == 0.f && std::lround(plainOf(a, PRESET)) == s1 % 1000 && std::lround(plainOf(a, BANK)) == s1 / 1000,
+                      "RANDOM: %d -> %d, host BANK/PRESET follow, button back to 0", s0, s1);
+            a->setParameter(a, RND, 0.0f);
+        }
+        CHECK(changes == 8, "eight RANDOM presses, eight new sounds (%d)", changes);
+        std::printf("    (%d of 8 landed in a sound set)\n", sets);
+        a->setParameter(a, BANK, norm(BANK, 1));
+        run(a, 30); vavra_dbg_tick(a);
+        settle(a, 200);
+        a->setParameter(a, SLOT5, 1.0f);
+        settle(a, 300);
+        a->setParameter(a, SLOT5, 0.0f);
+        settle(a);
+    }
 
     std::printf("== favourites (the engine's slots in the PRESET menu)\n");
     {

@@ -769,8 +769,9 @@ static const PSpec g_pspecs[] = {
     {"rsv_580", "Reserved 143", 0.0f, 1.0f, 0.0f, 544, nullptr, 0, -1, 0.0f},
     {"rsv_581", "Reserved 144", 0.0f, 1.0f, 0.0f, 544, nullptr, 0, -1, 0.0f},
     {"rsv_582", "Reserved 145", 0.0f, 1.0f, 0.0f, 544, nullptr, 0, -1, 0.0f},
+    {"random_patch", "RANDOM", 0.0f, 1.0f, 0.0f, 513, nullptr, 0, -1, 0.0f},
 };
-static const int kNumParams = 583;
+static const int kNumParams = 584;
 static const int kNumEngineParams = 437;   // 0 .. this - 1 are the engine's keys
 static const int kUiParam = 437;            // ui_open: 0 closed, k + 1 = pick-list of g_popups[k]
 static const int kNumPopups = 146;
