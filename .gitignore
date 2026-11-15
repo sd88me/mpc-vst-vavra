@@ -4,3 +4,6 @@ vst/preview/
 dist/
 data/
 *.wav
+tests/data/*.chunk
+skins/
+__pycache__/

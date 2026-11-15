@@ -1,7 +1,7 @@
 /* Vavra for MPC: gearmulator's Waldorf microQ emulation (mqLib: the microQ's 68k firmware plus its DSP56362 voice DSP) as an
  * mpc-vst-plugins engine (wrapper/engine.h). GPL-3.0.
  *
- * One emulator thread per instance runs mqLib::Device through gearmulator's synthLib::Plugin, fills a ring of int16 stereo, and
+ * One emulator thread per instance runs mqLib::Device through gearmulator's synthLib::Plugin, fills a ring of float stereo, and
  * render() only drains it. Everything the host does reaches the device as MIDI or sysex queued from the host's thread: notes and
  * controllers as they are, parameters as single parameter change sysex (a whole byte: some bytes carry two parameters as bit
  * fields), sounds as a ROM single copied into the single edit buffer. The parameter table is generated (tools/gen_params.py ->
@@ -23,6 +23,7 @@
 #include <strings.h>
 #include <exception>
 #include <memory>
+#include <random>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -131,7 +132,7 @@ struct Inst {
     std::atomic<bool> stop{false}, ready{false}, failed{false};
     std::atomic<int> harvest_progress{-1};                   // names harvested so far (-1: none running)
 
-    std::vector<int16_t> ring = std::vector<int16_t>(kRingFrames * 2);
+    std::vector<float> ring = std::vector<float>(kRingFrames * 2);     // float: a loud sound may pass full scale (no clipping here)
     std::atomic<uint32_t> wr{0}, rd{0};
     std::atomic<uint32_t> underruns{0};
     std::atomic<uint32_t> ring_min{0xffffffffu}, burst_max{0};
@@ -165,6 +166,7 @@ struct Inst {
     char fav_name[kFavSlots][24] = {};
     Dump fav_dump[kFavSlots];
     std::atomic<long long> fav_list_ms{-100000};
+    Dump fav_pending;                                         // the sound taken by "fav_begin" (the naming keyboard), saved by "fav_save_as"
     std::mutex stm;
     char stats_cache[96] = "";
     int stats_cpu = -1;
@@ -663,11 +665,11 @@ void emu_main(Inst *in) {
             if (++cnt % 345 == 0) { xlog("[out] %.4f %.4f %.4f %.4f %.4f %.4f", pk[0], pk[1], pk[2], pk[3], pk[4], pk[5]); memset(pk, 0, sizeof pk); }
         }
         if (!to_ring) return;
-        const float g = in->gain.load() / 100.0f * 32767.0f;
-        uint32_t w = in->wr.load(std::memory_order_relaxed);
+        const float g = in->gain.load() / 100.0f;      // full scale = 1.0; above it passes on (the host mixes in float), only a
+        uint32_t w = in->wr.load(std::memory_order_relaxed);   // runaway value is held at +-8 (+18 dB)
         for (int i = 0; i < kBlock; i++) {
-            in->ring[(w & (kRingFrames - 1)) * 2] = (int16_t)std::max(-32768.0f, std::min(32767.0f, outl[i] * g));
-            in->ring[(w & (kRingFrames - 1)) * 2 + 1] = (int16_t)std::max(-32768.0f, std::min(32767.0f, outr[i] * g));
+            in->ring[(w & (kRingFrames - 1)) * 2] = std::max(-8.0f, std::min(8.0f, outl[i] * g));
+            in->ring[(w & (kRingFrames - 1)) * 2 + 1] = std::max(-8.0f, std::min(8.0f, outr[i] * g));
             w++;
         }
         in->wr.store(w, std::memory_order_release);
@@ -680,6 +682,13 @@ void emu_main(Inst *in) {
         if (!have_state) ask_for_sound(in->bank.load(), in->preset.load());
     }
     in->set_status("Warming up...");
+    if (const char *dbg = getenv("VAVRA_DBG_SYSEX"); dbg && *dbg) {   // experiments: hex sysex messages separated by ';', sent once at boot
+        std::vector<uint8_t> m;
+        for (const char *c = dbg;; c++) {
+            if (*c == ';' || !*c) { if (!m.empty()) { synthLib::SMidiEvent e(synthLib::MidiEventSource::Host); e.sysex.assign(m.begin(), m.end()); plugin->addMidiEvent(e); xlog("[dbg] sysex %zu bytes", m.size()); m.clear(); } if (!*c) break; }
+            else if (isxdigit((unsigned char)*c) && isxdigit((unsigned char)c[1])) { m.push_back((uint8_t)strtol(std::string(c, 2).c_str(), nullptr, 16)); c++; }
+        }
+    }
     for (int i = 0; (i < kTargetFill / kBlock + 2 || (want.active && i < 4000)) && !in->stop; i++) produce(true);
     in->ready = true;
     in->set_status("Ready - ROM loaded");
@@ -768,6 +777,35 @@ void fav_save(Inst *in) {
     for (int i = 0; i < in->fav_count; i++) if (in->fav_dump[i] == d) return;      // already there
     const int i = in->fav_count;
     snprintf(in->fav_name[i], 24, "%s", nm[0] ? nm : "Favourite");
+    in->fav_dump[i] = d;
+    in->fav_count++;
+    if (!fav_write(in)) in->fav_count--;
+    else { in->fav_current = i; in->fav_stamp = in->load_gen; xlog("[fav] saved %d \"%s\"", i + 1, in->fav_name[i]); }
+}
+
+/* the native front end's naming keyboard: +FAV takes the sound as it is now ("fav_begin"), SAVE stores it under the typed name */
+void fav_begin(Inst *in) {
+    const Dump d = current_dump(in);
+    std::lock_guard<std::mutex> l(in->fm);
+    in->fav_pending = d;
+}
+
+void fav_save_as(Inst *in, const char *name) {
+    std::lock_guard<std::mutex> l(in->fm);
+    const Dump d = in->fav_pending;
+    if (d.size() != (size_t)kDumpLen) return;
+    char nm[24];
+    snprintf(nm, sizeof nm, "%s", name && name[0] ? name : "Favourite");
+    for (int i = 0; i < in->fav_count; i++)
+        if (in->fav_dump[i] == d) {                                // already there: the new name
+            memcpy(in->fav_name[i], nm, 24);
+            fav_write(in);
+            in->fav_current = i; in->fav_stamp = in->load_gen;
+            return;
+        }
+    if (in->fav_count >= kFavSlots) return;
+    const int i = in->fav_count;
+    memcpy(in->fav_name[i], nm, 24);
     in->fav_dump[i] = d;
     in->fav_count++;
     if (!fav_write(in)) in->fav_count--;
@@ -958,8 +996,23 @@ void eng_set(void *p, const char *key, const char *val) {
     }
     if (!strcmp(key, "all_notes_off")) { if (press) { Cmd c; c.type = C_PANIC; in->push(std::move(c)); } return; }
     if (!strcmp(key, "init_patch")) { if (press) select_sound(in, in->bank, in->preset); return; }      // reload the stored sound
+    if (!strcmp(key, "random_patch")) {   // a random sound from every loaded bank (ROM and sound sets), never the current one
+        if (!press || in->failed) return;
+        int total = 0;
+        for (int b = 0; b < bank_count(in); b++) total += bank_size(in, b);
+        if (total < 2) return;
+        static std::mt19937 rng((unsigned)std::chrono::steady_clock::now().time_since_epoch().count());
+        for (int tries = 0; tries < 8; tries++) {
+            int k = (int)(rng() % (unsigned)total), b = 0;
+            while (k >= bank_size(in, b)) k -= bank_size(in, b++);
+            if (b != in->bank || k != in->preset) { select_sound(in, b, k); return; }
+        }
+        return;
+    }
     if (!strcmp(key, "fav_save")) { if (press) { fav_save(in); in->bump(); } return; }
     if (!strcmp(key, "fav_delete")) { if (press) { fav_delete(in); in->bump(); } return; }
+    if (!strcmp(key, "fav_begin")) { fav_begin(in); return; }
+    if (!strcmp(key, "fav_save_as")) { fav_save_as(in, val); in->bump(); return; }
     if (!strcmp(key, "favourite")) { fav_pick(in, atoi(val)); return; }
     if (!strcmp(key, "gain")) { in->gain = clampi(atoi(val), 10, 400); return; }
     if (!strcmp(key, "state")) { restore_state(in, val); return; }
@@ -1045,6 +1098,15 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     }
     if (!strcmp(key, "fav_text")) { std::lock_guard<std::mutex> l(in->fm); return put(buf, n, "FAVOURITES %d / %d", in->fav_count, kFavSlots); }
     if (!strcmp(key, "display_rev")) return put(buf, n, "%u", in->rev.load());
+    if (!strcmp(key, "ready")) return put(buf, n, "%d", in->ready.load() ? 1 : 0);      // the native front end: booted, "state" now holds the sound
+    if (!strcmp(key, "fav_count")) { std::lock_guard<std::mutex> l(in->fm); return put(buf, n, "%d", in->fav_count); }
+    if (!strncmp(key, "fav_name:", 9)) {      // a favourite's name for the native front end's PRESET menu (unlike "favourite:", no menu hold)
+        std::lock_guard<std::mutex> l(in->fm);
+        const int i = atoi(key + 9);
+        return put(buf, n, "%s", i >= 0 && i < in->fav_count ? in->fav_name[i] : "");
+    }
+    if (!strcmp(key, "bank_count")) return put(buf, n, "%d", bank_count(in));
+    if (!strcmp(key, "sound_name")) { std::lock_guard<std::mutex> l(in->sm); return put(buf, n, "%s", in->cur_name); }   // the edit buffer's name
     int fx, slot;
     const int fb = fx_byte(in, key, &fx, &slot);
     if (fb != -2) {
@@ -1076,9 +1138,9 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     return -1;
 }
 
-void eng_render(void *p, int16_t *out, int frames) {
-    Inst *in = (Inst *)p;
-    if (!in || !in->ready.load(std::memory_order_acquire)) { memset(out, 0, (size_t)frames * 4); return; }
+/* the ring's frames to `out` (interleaved stereo float), silence for what is missing (an underrun) */
+void render_float(Inst *in, float *out, int frames) {
+    if (!in || !in->ready.load(std::memory_order_acquire)) { memset(out, 0, (size_t)frames * 2 * sizeof(float)); return; }
     uint32_t r = in->rd.load(std::memory_order_relaxed);
     const uint32_t avail = in->wr.load(std::memory_order_acquire) - r;
     if (avail < in->ring_min.load(std::memory_order_relaxed)) in->ring_min.store(avail, std::memory_order_relaxed);
@@ -1090,8 +1152,19 @@ void eng_render(void *p, int16_t *out, int frames) {
     }
     in->rd.store(r, std::memory_order_release);
     if (got < frames) {
-        memset(out + got * 2, 0, (size_t)(frames - got) * 4);
+        memset(out + got * 2, 0, (size_t)(frames - got) * 2 * sizeof(float));
         in->underruns.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+/* the 1.x API's int16 render (clips at full scale); the native front end takes floats (vavra_render_float) */
+void eng_render(void *p, int16_t *out, int frames) {
+    float f[2 * 512];
+    for (int done = 0; done < frames;) {
+        const int n = std::min(frames - done, 512);
+        render_float((Inst *)p, f, n);
+        for (int i = 0; i < 2 * n; i++) out[2 * done + i] = (int16_t)lrintf(std::max(-32768.0f, std::min(32767.0f, f[i] * 32767.0f)));
+        done += n;
     }
 }
 
@@ -1109,3 +1182,4 @@ const mpc_engine_t engine = {eng_create, eng_destroy, eng_midi, eng_set, eng_get
 }  // namespace
 
 extern "C" const mpc_engine_t *mpc_engine(void) { return &engine; }
+extern "C" void vavra_render_float(void *p, float *out, int frames) { render_float((Inst *)p, out, frames); }

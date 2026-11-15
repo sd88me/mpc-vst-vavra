@@ -1,0 +1,9 @@
+[
+  {
+    "version": "1.0.0",
+    "device": "MPC Live III (Gen2)",
+    "firmware": "MPC OS 3.10.1",
+    "date": "2026-11-15",
+    "note": "Tested as the beta build (Vavra 2 Beta, own uid) from VST2 Plugins: loads, plays, MAIN and BANKS, RANDOM, the +FAV keyboard (open / cancel), the three skins. Not tried on the device: a 0.1.0 project (tested offline with a real 0.1.0 chunk), save/reload, the install.sh upgrade."
+  }
+]
