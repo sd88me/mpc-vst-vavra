@@ -132,9 +132,9 @@ def _norm(v):
 
 
 def _knob_layers(size, red):
-    """The microQ's knob seen from above, shaded per pixel at 4x: a wide tapered cone in dark smoky grey (the fluted sides), and the small
-    top cap: a glossy black rim around a darker domed face (red on the cutoff). The light does not turn with the knob, so these two layers
-    serve every frame; the flutes, which do turn, are drawn per frame between them."""
+    """The microQ's knob seen from above, shaded per pixel at 4x: a wide tapered cone in dark smoky plastic, and the clear top: a black
+    rim around a clear dome through which the dark shaft insert shows (red-tinted on the cutoff). The light does not turn with the knob,
+    so these layers serve every frame; the five clear side windows, which do turn, are drawn per frame between them."""
     S = 4
     n = size * S
     R = n / 2.0 - 4 * S
@@ -144,8 +144,11 @@ def _knob_layers(size, red):
     cone = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     cap = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     pc, pt = cone.load(), cap.load()
-    RC = 0.56                              # the top cap's radius (of R)
-    face = (150, 26, 22) if red else (58, 58, 62)
+    RC = 0.56                              # the top's radius (of R)
+    RIM = 0.10                             # its black rim
+    RI = 0.30                              # the shaft insert seen through the clear top
+    glass = (150, 70, 60) if red else (112, 108, 92)      # clear plastic over the dark insert, the yellow panel faintly in it
+    insert = (120, 18, 16) if red else (30, 30, 32)
     for y in range(n):
         for x in range(n):
             dx, dy = x + 0.5 - cx, y + 0.5 - cy
@@ -153,29 +156,34 @@ def _knob_layers(size, red):
             if r > 1.0:
                 continue
             ux, uy = (dx / (r * R), dy / (r * R)) if r > 0 else (0.0, 0.0)
-            if r >= RC - 0.01:             # the cone: the sides slope outwards and down
+            if r >= RC - 0.01:             # the cone: dark smoky plastic, sloping out and down
                 k = (r - RC) / (1 - RC)
-                nz = 0.78 - 0.45 * k * k
-                nn = _norm((ux * 0.62, uy * 0.62, nz))
+                nn = _norm((ux * 0.62, uy * 0.62, 0.78 - 0.45 * k * k))
                 dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
                 spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 18
-                g = 36 + 64 * dif + 60 * spc
-                edge = max(0.0, (r - 0.96) / 0.04)          # the rounded foot
-                g *= 1 - 0.5 * edge
-                pc[x, y] = (int(g * 1.02), int(g), int(g * 0.94), 255)
-            if r < RC:                      # the top cap
-                if r > RC - 0.11:           # its rim: a glossy black band
-                    t = (r - (RC - 0.11)) / 0.11
-                    nn = _norm((ux * (t - 0.3) * 1.4, uy * (t - 0.3) * 1.4, 1.0))
+                g = (24 + 50 * dif + 60 * spc) * (1 - 0.5 * max(0.0, (r - 0.96) / 0.04))
+                pc[x, y] = (int(g * 1.03), int(g), int(g * 0.92), 255)
+            if r < RC:
+                if r > RC - RIM:           # the black rim of the top
+                    t = (r - (RC - RIM)) / RIM
+                    nn = _norm((ux * (t - 0.35) * 1.5, uy * (t - 0.35) * 1.5, 1.0))
                     spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 30
-                    g = 10 + 30 * max(0.0, sum(a * b for a, b in zip(nn, L))) + 200 * spc
+                    g = 8 + 26 * max(0.0, sum(a * b for a, b in zip(nn, L))) + 190 * spc
                     pt[x, y] = (int(g), int(g), int(g + 2), 255)
-                else:                       # its face: a shallow smoky dome with a soft highlight
-                    q = r / (RC - 0.11)
-                    nn = _norm((ux * q * 0.35, uy * q * 0.35, 1.0))
+                else:                       # the clear dome: the insert and its well seen through it, then the glass's own light
+                    q = r / (RC - RIM)
+                    if r < RI:
+                        col = list(insert)
+                        col = [c + 18 * (1 - r / RI) for c in col]
+                    else:
+                        t = (r - RI) / (RC - RIM - RI)
+                        col = [g * (0.75 + 0.35 * t) for g in glass]                 # deeper towards the rim of the well
+                        if t < 0.12:
+                            col = [c * 0.55 for c in col]                            # the insert's edge
+                    nn = _norm((ux * q * 0.5, uy * q * 0.5, 1.0))
                     dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
                     spc = max(0.0, sum(a * b for a, b in zip(nn, H)))
-                    col = [c * (0.6 + 0.5 * dif) + 150 * spc ** 50 + 30 * spc ** 6 for c in face]
+                    col = [c * (0.75 + 0.35 * dif) + 235 * spc ** 60 + 40 * spc ** 8 for c in col]
                     pt[x, y] = tuple(int(min(255, c)) for c in col) + (255,)
     shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 130))
@@ -184,45 +192,47 @@ def _knob_layers(size, red):
 
 
 def _flutes(n, cx, cy, R, RC, rot):
-    """the six scalloped flutes of the sides, turned by `rot` (radians): each a long recess from just outside the cap to near the foot,
-    its wall away from the light catching it (a groove), the whole flute brighter where it faces the light"""
+    """the five clear pill windows of the sides, turned by `rot` (radians): even-width capsules from just outside the top to near the
+    foot, the yellow panel faintly through them, a dark edge, a glint along the side that faces the light"""
     S = 4
     lay = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
     la = math.atan2(LIGHT[1], LIGHT[0])
-    for i in range(6):
-        phi = rot + i * math.pi / 3
+    r0, r1, w = RC + 0.13, 0.84, 0.145
+    for i in range(5):
+        phi = rot + i * 2 * math.pi / 5
         face = 0.5 + 0.5 * math.cos(phi - la)                  # 1 = facing the light
         ux, uy, vx, vy = math.cos(phi), math.sin(phi), -math.sin(phi), math.cos(phi)
 
-        def oval(r0, r1, w, off, col):
+        def capsule(a0, a1, hw, off, col):
             pts = []
-            for k in range(40):
-                t = k / 39.0 * math.pi * 2
-                rr = (r0 + r1) / 2 + (r1 - r0) / 2 * math.cos(t)
-                ww = w * (0.55 + 0.45 * (rr - r0) / (r1 - r0)) * math.sin(t)   # wider towards the foot
-                pts.append((cx + (ux * rr + vx * (ww + off)) * R, cy + (uy * rr + vy * (ww + off)) * R))
-            ImageDraw.Draw(lay).polygon(pts, fill=col)
-        base = int(62 + 64 * face)
-        oval(RC + 0.01, 0.97, 0.16, 0.0, (base, base, int(base * 0.93), 255))
-        lit = int(96 + 110 * face)
-        side = -1 if math.sin(phi - la) > 0 else 1              # the wall turned away from the light
-        oval(RC + 0.06, 0.93, 0.075, side * 0.05, (lit, lit, int(lit * 0.94), 255))
-    lay = lay.filter(ImageFilter.GaussianBlur(1.2 * S))
-    mask = Image.new("L", (n, n), 0)
-    ImageDraw.Draw(mask).ellipse((cx - R * 0.97, cy - R * 0.97, cx + R * 0.97, cy + R * 0.97), fill=255)
-    out = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    out.paste(lay, (0, 0), Image.composite(lay.getchannel("A"), Image.new("L", (n, n), 0), mask))
-    return out
+            for k in range(24):                                 # the outer round end, then the inner one
+                t = math.pi / 2 - k / 23.0 * math.pi
+                pts.append((a1 + hw * math.cos(t), hw * math.sin(t) + off))
+            for k in range(24):
+                t = -math.pi / 2 - k / 23.0 * math.pi
+                pts.append((a0 + hw * math.cos(t), hw * math.sin(t) + off))
+            d.polygon([(cx + (ux * p + vx * q) * R, cy + (uy * p + vy * q) * R) for p, q in pts], fill=col)
+        capsule(r0, r1, w, 0.0, (14, 13, 10, 255))                                      # the dark edge
+        g = 0.55 + 0.45 * face
+        capsule(r0, r1, w - 0.025, 0.0, (int(146 * g), int(138 * g), int(92 * g), 255))  # clear plastic, the panel's yellow in it
+        side = -1 if math.sin(phi - la) > 0 else 1
+        capsule(r0 + 0.02, r1 - 0.02, 0.03, side * 0.07, (int(200 + 50 * face), int(196 + 50 * face), int(170 + 40 * face), 230))   # glint
+    return lay.filter(ImageFilter.GaussianBlur(0.6 * S))
 
 
 def knob_strip(size=76, frames=101, red=False):
-    """The microQ knob as a film strip (-135 .. +135 degrees over the frames): cone, turning flutes, top cap, and a light slot on the cap
-    from its centre to its rim as the pointer (cream on the red cutoff cap)."""
+    """The microQ knob as a film strip (-135 .. +135 degrees over the frames): cone, turning clear windows, clear top, and a light slot on
+    the shaft insert under the clear top as the pointer (cream on the red cutoff)."""
     S = 4
     shadow, cone, cap, (cx, cy, R, RC) = _knob_layers(size, red)
     n = size * S
     out = Image.new("RGBA", (size, size * frames), (0, 0, 0, 0))
-    hi = (255, 236, 214, 255) if red else (214, 214, 210, 255)
+    hi = (255, 236, 214, 255) if red else (220, 220, 214, 255)
+    glint = Image.new("RGBA", (n, n), (0, 0, 0, 0))                # a soft crescent of light on the clear top, upper left
+    gr = R * (RC - 0.12)
+    ImageDraw.Draw(glint).ellipse((cx - gr * 0.85, cy - gr * 0.92, cx + gr * 0.25, cy - gr * 0.05), fill=(255, 255, 255, 46))
+    glint = glint.filter(ImageFilter.GaussianBlur(2 * S))
     for f in range(frames):
         a = math.radians(-135 + 270 * f / (frames - 1) - 90)
         im = shadow.copy()
@@ -231,9 +241,10 @@ def knob_strip(size=76, frames=101, red=False):
         im.alpha_composite(cap)
         d = ImageDraw.Draw(im)
         x0, y0 = cx + math.cos(a) * R * 0.05, cy + math.sin(a) * R * 0.05
-        x1, y1 = cx + math.cos(a) * R * (RC - 0.12), cy + math.sin(a) * R * (RC - 0.12)
-        d.line((x0, y0, x1, y1), fill=(8, 8, 10, 255), width=int(4.6 * S))                         # the slot
-        d.line((x0 - 0.6 * S, y0 - 0.6 * S, x1 - 0.6 * S, y1 - 0.6 * S), fill=hi, width=int(2.6 * S))  # its lit edge
+        x1, y1 = cx + math.cos(a) * R * (RC - 0.13), cy + math.sin(a) * R * (RC - 0.13)
+        d.line((x0, y0, x1, y1), fill=(8, 8, 10, 200), width=int(4.4 * S))                          # the slot on the insert
+        d.line((x0 - 0.6 * S, y0 - 0.6 * S, x1 - 0.6 * S, y1 - 0.6 * S), fill=hi, width=int(2.4 * S))  # its lit edge
+        im.alpha_composite(glint)                                                                     # the clear top's light over it
         out.paste(im.resize((size, size), Image.LANCZOS), (0, f * size))
     return out
 
