@@ -83,6 +83,7 @@ static void run(AEffect* e, int blocks, const std::vector<std::vector<uint8_t>>&
 }
 static void settle(AEffect* e, int blocks = 40) { run(e, blocks); vavra_dbg_tick(e); }
 static void tap(AEffect* e, int i, int blocks = 60) { e->setParameter(e, i, 1.0f); settle(e, blocks); e->setParameter(e, i, 0.0f); settle(e, 10); }
+static void key(AEffect* e, int i) { tap(e, i, 30); run(e, 80); }   // a keyboard key: > 250 ms apart (a quicker repeat counts as the same tap)
 
 static AEffect* open(const char* what, float rate = 44100.f)
 {
@@ -118,6 +119,7 @@ int main(int argc, char** argv)
     const char* pf = std::getenv("MPC_PLUGIN_FOLDER");
     const std::string favFile = std::string(pf ? pf : ".") + "/vavra/favourites.dat";
     std::remove(favFile.c_str());
+    std::remove((std::string(pf ? pf : ".") + "/vavra-skin.txt").c_str());
 
     std::printf("== identity\n");
     AEffect* a = open("A");
@@ -125,7 +127,7 @@ int main(int argc, char** argv)
     a->dispatcher(a, effGetEffectName, 0, 0, name, 0);
     CHECK(a->uniqueID == (VstInt32)0x56617651, "uid VavQ (%08x)", (unsigned)a->uniqueID);
     CHECK(!std::strcmp(name, VAVRA_EXPECT_NAME), "name \"%s\"", name);
-    CHECK(a->numParams == 584, "584 params: 0.1.0's 583 + RANDOM (%d)", a->numParams);
+    CHECK(a->numParams == 629, "629 params: 0.1.0's 583 + RANDOM, the naming keyboard, the skin switch (%d)", a->numParams);
     CHECK(a->dispatcher(a, effGetVendorVersion, 0, 0, nullptr, 0) == 2000, "version 2000");
     {
         int bad = 0, i = 0;
@@ -140,7 +142,7 @@ int main(int argc, char** argv)
             i++;
         }
         if (f) std::fclose(f);
-        CHECK(f && bad == 0 && i == 584, "order = params.lock (%d keys, %d differ)", i, bad);
+        CHECK(f && bad == 0 && i == 629, "order = params.lock (%d keys, %d differ)", i, bad);
         CHECK(!std::strcmp(g_pspecs[583].key, "random_patch"), "583 = random_patch (appended)");
         CHECK(!std::strcmp(g_pspecs[0].key, "bank_index") && !std::strcmp(g_pspecs[437].key, "ui_open"), "0 = bank_index, 437 = ui_open");
     }
@@ -283,10 +285,29 @@ int main(int argc, char** argv)
               "programs: \"%s\" .. \"%s\", current = the first empty slot", progName(a, 0).c_str(), progName(a, 63).c_str());
         a->setParameter(a, CUT, norm(CUT, 21));
         settle(a);
+        const int KBO = idx("kb_open"), FNAME = idx("fav_name");
+        std::string snd = eng(a, "sound_name");
+        while (!snd.empty() && snd.back() == ' ') snd.pop_back();
         tap(a, SAVE);
+        CHECK(a->getParameter(a, KBO) == 1.f && disp(a, FNAME) == snd + "_" && engi(a, "fav_count") == 0 && a->getParameter(a, SAVE) == 0.f,
+              "+FAV opens the keyboard on \"%s\" (nothing saved yet)", disp(a, FNAME).c_str());
+        a->setParameter(a, CUT, norm(CUT, 99));   // an edit while typing: the favourite keeps the sound as it was at +FAV
+        settle(a);
+        for (size_t i = 0; i < snd.size(); i++) key(a, idx("kb_bksp"));
+        CHECK(disp(a, FNAME) == "_", "DELETE clears the name (\"%s\")", disp(a, FNAME).c_str());
+        for (const char* k : {"kb_m", "kb_y", "kb_space", "kb_p", "kb_a", "kb_d"}) key(a, idx(k));
+        CHECK(disp(a, FNAME) == "My Pad_", "typed \"%s\" (capital at the start and after a space)", disp(a, FNAME).c_str());
+        a->setParameter(a, idx("kb_dash"), 1.0f); run(a, 20); a->setParameter(a, idx("kb_dash"), 0.0f); run(a, 5);
+        a->setParameter(a, idx("kb_dash"), 1.0f); run(a, 20); a->setParameter(a, idx("kb_dash"), 0.0f); settle(a, 60);
+        CHECK(disp(a, FNAME) == "My Pad-_", "a key reported twice within 250 ms types once (\"%s\")", disp(a, FNAME).c_str());
+        key(a, idx("kb_bksp"));
+        key(a, idx("kb_save"));
+        settle(a, 20);
         const std::string fn = eng(a, "fav_name:0");
-        CHECK(engi(a, "fav_count") == 1 && !fn.empty() && progName(a, 0) == "1 " + fn && a->getParameter(a, SAVE) == 0.f,
-              "+FAV: program 1 = \"%s\", button back to 0", progName(a, 0).c_str());
+        CHECK(a->getParameter(a, KBO) == 0.f && engi(a, "fav_count") == 1 && fn == "My Pad" && progName(a, 0) == "1 My Pad",
+              "SAVE: the keyboard closes, program 1 = \"%s\"", progName(a, 0).c_str());
+        a->setParameter(a, CUT, norm(CUT, 21));
+        settle(a);
         CHECK(a->dispatcher(a, effGetProgram, 0, 0, nullptr, 0) == 0, "the saved favourite is the current program");
         FILE* f = std::fopen(favFile.c_str(), "rb");
         CHECK(f != nullptr, "favourites.dat written (as 0.1.0 did)");
@@ -299,6 +320,10 @@ int main(int argc, char** argv)
         settle(a, 400);
         vavra_dbg_tick(a);
         CHECK(engi(a, "F1Cutoff") == 21 && std::lround(plainOf(a, CUT)) == 21, "PRESET 1 recalls the favourite with F1 CUTOFF %d", engi(a, "F1Cutoff"));
+        tap(a, SAVE);
+        key(a, idx("kb_x"));
+        key(a, idx("kb_cancel"));
+        CHECK(a->getParameter(a, KBO) == 0.f && engi(a, "fav_count") == 1, "CANCEL closes the keyboard, nothing saved");
         tap(a, DEL);
         CHECK(engi(a, "fav_count") == 0 && progName(a, 0) == "1 --", "-FAV: program 1 = \"%s\"", progName(a, 0).c_str());
     }
@@ -346,7 +371,17 @@ int main(int argc, char** argv)
     a->setParameter(a, GAIN, norm(GAIN, 300));
     settle(a, 60);
     const std::string nameA = eng(a, "preset_name");
-    const std::vector<uint8_t> ca = chunk(a);
+    const int SKIN = idx("skin");
+    auto readFile = [](const std::string& path) { std::string t; if (FILE* f = std::fopen(path.c_str(), "r")) { int c; while ((c = std::fgetc(f)) != EOF) t += (char)c; std::fclose(f); } return t; };
+    const std::string skinFile = std::string(pf ? pf : ".") + "/vavra-skin.txt";
+    CHECK(std::lround(plainOf(a, SKIN)) == 0 && disp(a, SKIN) == "microQ", "skin: microQ without a setting file (\"%s\")", disp(a, SKIN).c_str());
+    a->setParameter(a, SKIN, 1.0f);
+    settle(a, 10);
+    CHECK(readFile(skinFile) == "alt\n" && disp(a, SKIN) == "Alternative", "skin: Alternative is written to vavra-skin.txt");
+    const std::vector<uint8_t> ca = chunk(a);   // saved with the skin on Alternative: a project must not carry it
+    a->setParameter(a, SKIN, 0.0f);
+    settle(a, 10);
+    CHECK(readFile(skinFile) == "microq\n", "skin: back to microQ in the file");
     CHECK(ca.size() > 800 && !std::memcmp(ca.data(), "MPCP", 4), "A saves an MPC chunk (%zu bytes)", ca.size());
     AEffect* b = open("B");
     CHECK(waitReady(b), "B ready");
@@ -357,6 +392,15 @@ int main(int argc, char** argv)
           "B: A/%d, F1 CUTOFF %d (the edit survives), GAIN %d", engi(b, "preset"), engi(b, "F1Cutoff"), engi(b, "gain"));
     CHECK(eng(b, "preset_name") == nameA && std::lround(plainOf(b, CUT)) == 77 && std::lround(plainOf(b, GAIN)) == 300,
           "B: \"%s\", host F1 CUTOFF %.0f, GAIN %.0f", eng(b, "preset_name").c_str(), plainOf(b, CUT), plainOf(b, GAIN));
+    settle(b, 10);
+    CHECK(std::lround(plainOf(b, SKIN)) == 0 && readFile(skinFile) == "microq\n", "skin: a project saved on Alternative leaves the global microQ alone");
+    b->setParameter(b, SKIN, 1.0f);
+    settle(b, 10);
+    run(a, 500);                                   // ~1.5 s: A's worker re-reads the file about once a second
+    vavra_dbg_tick(a);
+    CHECK(std::lround(plainOf(a, SKIN)) == 1, "skin: B switches to Alternative, A follows");
+    b->setParameter(b, SKIN, 0.0f);
+    settle(b, 10);
 
     std::printf("== a 0.1.0 project\n");
     std::vector<uint8_t> legacy;

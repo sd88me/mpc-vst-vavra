@@ -17,8 +17,19 @@ P = json.load(open(os.path.join(ROOT, "vst", "params.json")))["params"]
 LOCK = [l.strip() for l in open(os.path.join(ROOT, "params.lock")) if l.strip()]
 REL = [l.rstrip("\n").split("\t") for l in open(os.path.join(ROOT, "vst", "released-0.1.0.tsv")) if l.strip()]
 NPOP = 146
+KB_CHARS = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM-"
 APPENDED = [                     # (key, name, min, max, default, flags) appended after the released 583, in this order
     ("random_patch", "RANDOM", 0, 1, 0, 1 | 512),      # kMomentary | kNoAuto: the engine's verb, a random sound from every loaded bank (BANKS page)
+    # the naming keyboard for +FAV (Profit-5's): the typed name (a text readout), the keyboard's visibility, its keys (kLocal)
+    ("fav_name", "Favourite Name", 0, 1023, 0, 2 | 4096 | 512),
+    ("kb_open", "Keyboard", 0, 1, 0, 16 | 4096 | 512),
+] + [("kb_" + ("dash" if c == "-" else c.lower()), "Key " + c, 0, 1, 0, 1 | 4096 | 512) for c in KB_CHARS] + [
+    ("kb_space", "Key Space", 0, 1, 0, 1 | 4096 | 512), ("kb_bksp", "Key Delete", 0, 1, 0, 1 | 4096 | 512),
+    ("kb_shift", "Key Shift", 0, 1, 0, 1 | 4096 | 512), ("kb_cancel", "Key Cancel", 0, 1, 0, 1 | 4096 | 512),
+    ("kb_save", "Key Save", 0, 1, 0, 1 | 4096 | 512),
+    # the skin switch (Xenia's): 0 the microQ look, 1 the alternative theme (to come). kLocal: one setting for the whole MPC
+    # (<plugin folder>/vavra-skin.txt), a project load leaves it alone
+    ("skin", "Skin", 0, 1, 0, 4096 | 512),
 ]
 
 keys = [p["key"] for p in P]
@@ -112,6 +123,12 @@ out += ["", "static const PSpec g_pspecs[] = {"] + rows + ["};",
         "static const int kNumPopups = %d;" % len(popups),
         "static const int kFirstAppended = %d;" % (len(keys) + NPOP),
         "static const int kFavParam = %d;           // \"favourite\": the PRESET menu's program (VST programs = favourites)" % idx["favourite"],
-        "static const int kFavSlots = 64;", ""]
+        "static const int kFavSlots = 64;",
+        "static const int kFavSave = %d;            // +FAV (0.1.0's fav_save): opens the naming keyboard" % idx["fav_save"],
+        "static const int kFavName = %d, kKbOpen = %d, kKbFirst = %d, kKbCount = %d;" % (LOCK.index("fav_name"), LOCK.index("kb_open"),
+                                                                                      LOCK.index("kb_1"), len(KB_CHARS) + 5),
+        "static const char kKbChars[] = %s;   // the character keys from kKbFirst, then space, delete, shift, cancel, save" % json.dumps(KB_CHARS),
+        "static const int kFavNameMax = 20;",
+        "static const int kSkin = %d;               // the skin switch (kLocal, global)" % LOCK.index("skin"), ""]
 open(os.path.join(ROOT, "src", "params_gen.h"), "w").write("\n".join(out))
 print("src/params_gen.h: %d params (%d engine, ui_open, %d reserved, %d appended)" % (len(LOCK), len(P), len(popups) - 1, len(APPENDED)))

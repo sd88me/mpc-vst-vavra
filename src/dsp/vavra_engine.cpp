@@ -166,6 +166,7 @@ struct Inst {
     char fav_name[kFavSlots][24] = {};
     Dump fav_dump[kFavSlots];
     std::atomic<long long> fav_list_ms{-100000};
+    Dump fav_pending;                                         // the sound taken by "fav_begin" (the naming keyboard), saved by "fav_save_as"
     std::mutex stm;
     char stats_cache[96] = "";
     int stats_cpu = -1;
@@ -775,6 +776,35 @@ void fav_save(Inst *in) {
     else { in->fav_current = i; in->fav_stamp = in->load_gen; xlog("[fav] saved %d \"%s\"", i + 1, in->fav_name[i]); }
 }
 
+/* the native front end's naming keyboard: +FAV takes the sound as it is now ("fav_begin"), SAVE stores it under the typed name */
+void fav_begin(Inst *in) {
+    const Dump d = current_dump(in);
+    std::lock_guard<std::mutex> l(in->fm);
+    in->fav_pending = d;
+}
+
+void fav_save_as(Inst *in, const char *name) {
+    std::lock_guard<std::mutex> l(in->fm);
+    const Dump d = in->fav_pending;
+    if (d.size() != (size_t)kDumpLen) return;
+    char nm[24];
+    snprintf(nm, sizeof nm, "%s", name && name[0] ? name : "Favourite");
+    for (int i = 0; i < in->fav_count; i++)
+        if (in->fav_dump[i] == d) {                                // already there: the new name
+            memcpy(in->fav_name[i], nm, 24);
+            fav_write(in);
+            in->fav_current = i; in->fav_stamp = in->load_gen;
+            return;
+        }
+    if (in->fav_count >= kFavSlots) return;
+    const int i = in->fav_count;
+    memcpy(in->fav_name[i], nm, 24);
+    in->fav_dump[i] = d;
+    in->fav_count++;
+    if (!fav_write(in)) in->fav_count--;
+    else { in->fav_current = i; in->fav_stamp = in->load_gen; xlog("[fav] saved %d \"%s\"", i + 1, in->fav_name[i]); }
+}
+
 void fav_delete(Inst *in) {           // only the favourite that is the current sound
     std::lock_guard<std::mutex> l(in->fm);
     const int d = in->fav_current;
@@ -974,6 +1004,8 @@ void eng_set(void *p, const char *key, const char *val) {
     }
     if (!strcmp(key, "fav_save")) { if (press) { fav_save(in); in->bump(); } return; }
     if (!strcmp(key, "fav_delete")) { if (press) { fav_delete(in); in->bump(); } return; }
+    if (!strcmp(key, "fav_begin")) { fav_begin(in); return; }
+    if (!strcmp(key, "fav_save_as")) { fav_save_as(in, val); in->bump(); return; }
     if (!strcmp(key, "favourite")) { fav_pick(in, atoi(val)); return; }
     if (!strcmp(key, "gain")) { in->gain = clampi(atoi(val), 10, 400); return; }
     if (!strcmp(key, "state")) { restore_state(in, val); return; }
@@ -1067,6 +1099,7 @@ int eng_get(void *p, const char *key, char *buf, int n) {
         return put(buf, n, "%s", i >= 0 && i < in->fav_count ? in->fav_name[i] : "");
     }
     if (!strcmp(key, "bank_count")) return put(buf, n, "%d", bank_count(in));
+    if (!strcmp(key, "sound_name")) { std::lock_guard<std::mutex> l(in->sm); return put(buf, n, "%s", in->cur_name); }   // the edit buffer's name
     int fx, slot;
     const int fb = fx_byte(in, key, &fx, &slot);
     if (fb != -2) {

@@ -25,6 +25,15 @@ TUI_PX = 0.62                                        # a Label draws its text at
 GESTURE = "Instant"
 KNOB = 76
 CLEAR = "clear.png"
+# The skin switch (parameter "skin", global): every page is built once per theme and the passes are merged into one TUI.json, each entry
+# shown only while skin == its theme's index. VAVRA_THEMES=microq,alt builds both; until the second theme is drawn, one pass (no doubling).
+THEMES = [t for t in os.environ.get("VAVRA_THEMES", "microq").split(",") if t]
+THEME = THEMES[0]
+
+
+def tag(name):
+    """a file / component name for the theme being built (the first theme keeps the plain names)"""
+    return name if THEME == THEMES[0] else "%s_%s" % (THEME, name)
 
 
 def PI(key):
@@ -119,8 +128,10 @@ def definitions():
         ("actions", [{"version": 1, "onAction": "Focus Lost", "handler": "Focus Lost", "handleName": "Focus Lost", "additionalData": ""}]),
         ("overlayType", "Knob With Header"), ("scaleType", "Linear"), ("polarityType", "Unipolar"),
         ("showMinusSign", True), ("handleName", "Data")), "0 0 1280 800", focus="Yes")], ignore=True)
-    out = [{"key": "vknob", "value": knob_def("knob_vv.png")}, {"key": "vknob_red", "value": knob_def("knob_vv_red.png")},
-           {"key": "knob overlay", "value": overlay}]
+    out = [{"key": "knob overlay", "value": overlay}]
+    for t in THEMES:
+        pre = "" if t == THEMES[0] else t + "_"
+        out += [{"key": pre + "vknob", "value": knob_def(pre + "knob_vv.png")}, {"key": pre + "vknob_red", "value": knob_def(pre + "knob_vv_red.png")}]
     for w, h in sorted(FIELDS):      # an invisible value slider over a live name: the data wheel, a Q-Link or a drag steps it
         ts = {"version": 1, "font": {"version": 1, "name": "Roboto", "style": "Regular", "height": 20.0}, "colour": "00000000",
               "justification": "horizontallyCentred verticallyCentred", "case": "Original"}
@@ -133,6 +144,7 @@ def definitions():
 
 
 def save(im, name):
+    name = tag(name)
     im.save(os.path.join(OUT, name))
     return name
 
@@ -165,15 +177,15 @@ def pick_panel(key, opts):
     rows = -(-len(opts) // cols)
     cw = 260 if cols == 1 else min(236, (1240 - 16) // cols - gap)
     pw, ph = cols * (cw + gap) + gap + 12, hdr + rows * (ch + gap) + gap + 10
-    ck = "list_%d_%s" % (len(opts), hashlib.md5("|".join(opts).encode()).hexdigest()[:8])
+    ck = tag("list_%d_%s" % (len(opts), hashlib.md5("|".join(opts).encode()).hexdigest()[:8]))
     if ck not in PICK_DEFS:
-        kids = [entry("panel", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": save(A.list_panel(pw, ph), ck + "_bg.png")},
+        kids = [entry("panel", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": save(A.list_panel(pw, ph), "%s_bg.png" % ck[len(tag("")):])},
                       "0 0 %d %d" % (pw, ph))]
         size = 16 if cw >= 200 else 14
         for i, o in enumerate(opts):
             r, c = i % rows, i // rows                 # down the columns
-            on = save(A.list_key(cw, ch, o, True, size), "%s_%d_on.png" % (ck, i))
-            off = save(A.list_key(cw, ch, o, False, size), "%s_%d_off.png" % (ck, i))
+            on = save(A.list_key(cw, ch, o, True, size), "%s_%d_on.png" % (ck[len(tag("")):], i))
+            off = save(A.list_key(cw, ch, o, False, size), "%s_%d_off.png" % (ck[len(tag("")):], i))
             kids.append(entry("opt %d" % i, "Button", {"version": 2, "onImage": on, "offImage": off, "buttonId": i, "numButtonsInGroup": len(opts),
                                                         "handleName": "Data", "gestureBehaviour": GESTURE},
                               "%d %d %d %d" % (8 + gap + c * (cw + gap), hdr + r * (ch + gap), cw, ch)))
@@ -196,7 +208,7 @@ class Page:
     def __init__(self, name, fn):
         self.name, self.fn = name, fn
         self.art = A.panel()
-        self.kids, self.panels = [], []
+        self.kids, self.panels, self.overlay = [], [], []
         self.pos = {}                 # key -> (x0, y0, x1, y1) of the control with its caption and value
         self.subs = [[]]              # per sub-tab: [(keys, rect)]
 
@@ -205,7 +217,7 @@ class Page:
         red = key in RED_KNOBS if red is None else red
         if cap:
             A.caption(self.art, cx, cy - 57, cap, size=20, width=114)
-        self.kids.append(entry(key, "vknob_red" if red else "vknob", {"version": 1, "handleName": "Data"},
+        self.kids.append(entry(key, tag("vknob_red" if red else "vknob"), {"version": 1, "handleName": "Data"},
                                "%d %d %d %d" % (cx - KNOB // 2, cy - KNOB // 2, KNOB, KNOB), remap=P(key), focus="Yes"))
         self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40), key, 29))
         self.pos[key] = (cx - 57, cy - box[0], cx + 57, cy + box[1])
@@ -258,7 +270,7 @@ class Page:
         A.section(self.art, x0, y0, x1, y1, title)
 
     def tabs(self, bgfile):
-        kids = [entry("bg", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": bgfile}, "0 0 1280 628")] + self.kids + self.panels
+        kids = [entry("bg", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": bgfile}, "0 0 1280 628")] + self.kids + self.panels + self.overlay
         out = []
         for sub, blocks in enumerate(self.subs):
             groups = ["%d %d %d %d" % (r[0], r[1], r[2] - r[0], r[3] - r[1]) for _, r in blocks]
@@ -314,10 +326,12 @@ def page_main(fn):
     pg.kids.append(label("70 182 690 72", "lcd1", 50, hexcol(A.LCD_INK), "left verticallyCentred"))
     pg.kids.append(label("70 262 690 72", "lcd2", 50, hexcol(A.LCD_INK), "left verticallyCentred"))
     pg.section(828, 128, 1264, 372, "sound")
-    pg.key("all_notes_off", 940, 196, "PANIC")
-    pg.key("init_patch", 1150, 196, "RELOAD")
-    pg.key("fav_save", 940, 288, "+ FAV")
-    pg.key("fav_delete", 1150, 288, "- FAV")
+    pg.key("all_notes_off", 906, 196, "PANIC")
+    pg.key("init_patch", 1046, 196, "RELOAD")
+    pg.key("skin", 1186, 196, "SKIN")
+    pg.key("random_patch", 906, 288, "RANDOM")
+    pg.key("fav_save", 1046, 288, "+ FAV")
+    pg.key("fav_delete", 1186, 288, "- FAV")
     pg.readout("fav_text", 860, 330, 1232, 358, 19)
     # quick edit: three blocks
     pg.section(16, 388, 478, 620, "filter 1")
@@ -332,6 +346,7 @@ def page_main(fn):
     for keys in (["F1Cutoff", "F1Resonance", "F1EnvMod", "FilterEnvDecay"], ["AmpEnvAttack", "AmpEnvRelease", "Lfo1Speed", "FX2Mix"], ["AmpVolume", "gain"]):
         pg.block(keys)
     pg.block(["bank_index", "preset"], rect=(296, 22, 1266, 64))
+    keyboard(pg)
     return pg
 
 
@@ -387,7 +402,47 @@ def page_banks(fn):
             tile("patch_slot_%d" % (c * 10 + r + 1), 328 + c * 314, 126 + r * 49, 306, 44)
     pg.art = Image.alpha_composite(pg.art, layer)
     pg.block(["bank_index", "preset"], rect=(16, 8, 804, 64))
+    keyboard(pg)
     return pg
+
+
+KB_ROWS = [("1234567890", ["kb_bksp"]), ("QWERTYUIOP", []), ("ASDFGHJKL-", []), ("ZXCVBNM", ["kb_space"])]
+
+
+def keyboard(pg):
+    """The naming keyboard for +FAV (Profit-5's): a full-page panel, the name being typed, 42 keys; shown while kb_open = 1, over
+    everything else on the page (it is added last)."""
+    ind = ["IndexedEnabling/1/2/Parameter %d" % PI("kb_open")]
+    panel = A.panel()
+    d = ImageDraw.Draw(panel)
+    d.rounded_rectangle((20, 8, 1260, 620), 12, fill=A.BLUE_DK + (255,))
+    d.rounded_rectangle((24, 12, 1256, 616), 10, fill=A.BLUE + (255,))
+    t = A.text_img("FAVOURITE NAME", 22, A.WHITE, slant=0.2)
+    panel.alpha_composite(t, (52, 52 - t.height // 2))
+    d.rounded_rectangle((300, 24, 1232, 80), 7, fill=A.CREAM + (255,), outline=A.BLUE_DK + (255,), width=2)
+    pg.overlay.append(entry("kb panel", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": save(panel.convert("RGB"), "kb_panel.png")},
+                            "0 0 1280 628", ind=ind))
+    pg.overlay.append(entry("kb name", "Label", {"version": 1, "textStyle": text_style(46, hexcol(A.INK), "left verticallyCentred", "Bold"),
+                                                 "type": "Value", "handleName": "Data"}, "316 24 900 56", P("fav_name"), ind=ind))
+    kw, kh, gap, x0, y0 = 98, 84, 8, 64, 100
+
+    def kbkey(k, cap, x, y, w):
+        on = save(A.key_cap(w, kh, cap, True), "kb_%s_%d_on.png" % (k, w))
+        off = save(A.key_cap(w, kh, cap, False), "kb_%s_%d_off.png" % (k, w))
+        pg.overlay.append(entry(k, "Button", {"version": 2, "onImage": on, "offImage": off, "buttonId": 1, "numButtonsInGroup": 1,
+                                              "handleName": "Data", "gestureBehaviour": GESTURE}, "%d %d %d %d" % (x, y, w, kh), remap=P(k), ind=ind))
+    for r, (chars, extra) in enumerate(KB_ROWS):
+        y = y0 + r * (kh + gap)
+        x = x0 + r * 30
+        for c in chars:
+            kbkey("kb_" + ("dash" if c == "-" else c.lower()), c, x, y, kw)
+            x += kw + gap
+        for k in extra:
+            kbkey(k, {"kb_bksp": "DELETE", "kb_space": "SPACE"}[k], x, y, 1216 - x)
+    y = y0 + 4 * (kh + gap)
+    kbkey("kb_shift", "SHIFT", x0, y, 220)
+    kbkey("kb_cancel", "CANCEL", 640 - 130, y, 260)
+    kbkey("kb_save", "SAVE", 1216 - 260, y, 260)
 
 
 def osc_row(pg, n, y0, extra=None):
@@ -708,27 +763,33 @@ def sample_text(key):
     return str(p.get("default", ""))
 
 
-def preview(pages, arts, defs, open_list=None, sub=0, suffix=""):
+def preview(pages, arts, defs, open_list=None, sub=0, suffix="", keyboard=False):
     os.makedirs(PREVIEW, exist_ok=True)
+    kb = "IndexedEnabling/1/2/Parameter %d" % PI("kb_open")
     for pg in pages:
         im = Image.open(os.path.join(OUT, arts[pg.name])).convert("RGBA")
         d = ImageDraw.Draw(im)
-        for e in pg.kids + pg.panels:
+        for e in pg.kids + pg.panels + pg.overlay:
             cd = e["componentData"]
             x, y, w, h = [int(float(v)) for v in e["bounds"]["bounds"].split()]
-            ind = [h for h in e["bounds"].get("additionalInvalidatingHandles", []) if h.endswith("Parameter %d" % UI_INDEX)]
+            hs = e["bounds"].get("additionalInvalidatingHandles", [])
+            ind = [h for h in hs if h.endswith("Parameter %d" % UI_INDEX)]
             if ind and ind[0].split("/")[1] != str(open_list):
+                continue
+            if (kb in hs) != keyboard and (keyboard or kb in hs):
                 continue
             if cd["type"] in ("vknob", "vknob_red"):
                 st = Image.open(os.path.join(OUT, "knob_vv_red.png" if cd["type"] == "vknob_red" else "knob_vv.png"))
                 fr = 70 if cd["type"] == "vknob_red" else 50
                 im.alpha_composite(st.crop((0, KNOB * fr, KNOB, KNOB * (fr + 1))).convert("RGBA"), (x, y))
+            elif cd["type"] == "Image" and keyboard:
+                im.alpha_composite(Image.open(os.path.join(OUT, cd["data"]["image"])).convert("RGBA"), (x, y))
             elif cd["type"] == "Label":
                 key = LOCK[int(e["handle remapping"]["map"][0]["value"].split()[1])]
                 ts = cd["data"]["textStyle"]
                 cen = "horizontallyCentred" in ts["justification"]
                 col = tuple(int(ts["colour"][i:i + 2], 16) for i in (2, 4, 6))
-                f, s = A.F(int(ts["font"]["height"] * TUI_PX * 1.25), False), sample_text(key)
+                f, s = A.F(int(ts["font"]["height"] * TUI_PX * 1.25), False), ("My Pad_" if key == "fav_name" else sample_text(key))
                 if f.getlength(s) > w:
                     while s and f.getlength(s + "...") > w:
                         s = s[:-1]
@@ -745,17 +806,16 @@ def preview(pages, arts, defs, open_list=None, sub=0, suffix=""):
                     img = s2["componentData"]["data"].get("image") or s2["componentData"]["data"].get("offImage")
                     if img:
                         im.alpha_composite(Image.open(os.path.join(OUT, img)).convert("RGBA"), (x + sx, y + sy))
-        for _, r in pg.subs[sub] if sub < len(pg.subs) else []:   # the Q-Link outlines, as the MPC draws them with the bounds overlay on
+        for _, r in (pg.subs[sub] if sub < len(pg.subs) and not keyboard else []):   # the Q-Link outlines (the bounds overlay on)
             d.rectangle(r, outline=(255, 255, 255, 200), width=2)
         name = re.sub(r"[^a-z0-9]+", "_", pg.name.lower()).strip("_")
-        im.convert("RGB").save(os.path.join(PREVIEW, "%s%s%s.png" % (name, suffix, "_list%d" % open_list if open_list else "")))
+        im.convert("RGB").save(os.path.join(PREVIEW, "%s%s%s%s.png" % (name, suffix, "_list%d" % open_list if open_list else "",
+                                                                       "_keyboard" if keyboard else "")))
 
 
-def main():
-    if os.path.isdir(OUT):
-        shutil.rmtree(OUT)
-    os.makedirs(OUT)
-    save(Image.new("RGBA", (8, 8), (0, 0, 0, 0)), CLEAR)
+def build_pass():
+    """one theme's pages: art, widgets, Q-Link blocks"""
+    A.set_theme(THEME)
     save(A.knob_strip(KNOB), "knob_vv.png")
     save(A.knob_strip(KNOB, red=True), "knob_vv_red.png")
     pages, arts, tabs = [], {}, []
@@ -764,6 +824,32 @@ def main():
         arts[name] = save(pg.art.convert("RGB"), "bg_%s.png" % re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_"))
         pages.append(pg)
         tabs += pg.tabs(arts[name])
+    return pages, arts, tabs
+
+
+def main():
+    global THEME
+    if os.path.isdir(OUT):
+        shutil.rmtree(OUT)
+    os.makedirs(OUT)
+    THEME = THEMES[0]
+    save(Image.new("RGBA", (8, 8), (0, 0, 0, 0)), CLEAR)
+    passes = []
+    for THEME in THEMES:
+        passes.append(build_pass())
+    THEME = THEMES[0]
+    pages, arts, tabs = passes[0]
+    if len(THEMES) > 1:   # one TUI.json: each pass's entries shown only while skin == its index (Xenia's skin switch)
+        skin = PI("skin")
+        for ti, t in enumerate(tabs):
+            merged = []
+            for which, (_, _, ptabs) in enumerate(passes):
+                for e in ptabs[ti]["componentDefinition"]["componentsData"]:
+                    b = e["bounds"]
+                    b["version"] = 2
+                    b.setdefault("additionalInvalidatingHandles", []).append("IndexedEnabling/%d/%d/Parameter %d" % (which, len(THEMES), skin))
+                    merged.append(e)
+            t["componentDefinition"]["componentsData"] = merged
     for pg in pages:   # the Q-Link frames of one sub-tab must not overlap (the MPC draws them all)
         for sub, blocks in enumerate(pg.subs):
             rs = [r for _, r in blocks]
@@ -791,7 +877,8 @@ def main():
         preview([pg for pg in pages if pg.name == "OSC 1/2"], arts, dd, open_list=POPUPS.index("O1Shape") + 1)
         preview([pg for pg in pages if pg.name == "FILTERS"], arts, dd, open_list=POPUPS.index("F1ModSource") + 1)
         preview([pg for pg in pages if pg.name == "MOD FAST"], arts, dd, open_list=POPUPS.index("Slot1FDestination") + 1)
-    print("wrote", OUT, "-", len(tabs), "tabs,", len(os.listdir(OUT)), "files,", len(PICK_DEFS), "pick-lists")
+        preview([pg for pg in pages if pg.name == "MAIN"], arts, dd, keyboard=True)
+    print("wrote", OUT, "-", len(tabs), "tabs,", len(os.listdir(OUT)), "files,", len(PICK_DEFS), "pick-lists,", len(THEMES), "theme(s)")
 
 
 if __name__ == "__main__":

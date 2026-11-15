@@ -770,11 +770,61 @@ static const PSpec g_pspecs[] = {
     {"rsv_581", "Reserved 144", 0.0f, 1.0f, 0.0f, 544, nullptr, 0, -1, 0.0f},
     {"rsv_582", "Reserved 145", 0.0f, 1.0f, 0.0f, 544, nullptr, 0, -1, 0.0f},
     {"random_patch", "RANDOM", 0.0f, 1.0f, 0.0f, 513, nullptr, 0, -1, 0.0f},
+    {"fav_name", "Favourite Name", 0.0f, 1023.0f, 0.0f, 4610, nullptr, 0, -1, 0.0f},
+    {"kb_open", "Keyboard", 0.0f, 1.0f, 0.0f, 4624, nullptr, 0, -1, 0.0f},
+    {"kb_1", "Key 1", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_2", "Key 2", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_3", "Key 3", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_4", "Key 4", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_5", "Key 5", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_6", "Key 6", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_7", "Key 7", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_8", "Key 8", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_9", "Key 9", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_0", "Key 0", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_q", "Key Q", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_w", "Key W", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_e", "Key E", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_r", "Key R", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_t", "Key T", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_y", "Key Y", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_u", "Key U", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_i", "Key I", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_o", "Key O", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_p", "Key P", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_a", "Key A", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_s", "Key S", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_d", "Key D", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_f", "Key F", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_g", "Key G", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_h", "Key H", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_j", "Key J", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_k", "Key K", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_l", "Key L", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_z", "Key Z", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_x", "Key X", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_c", "Key C", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_v", "Key V", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_b", "Key B", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_n", "Key N", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_m", "Key M", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_dash", "Key -", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_space", "Key Space", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_bksp", "Key Delete", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_shift", "Key Shift", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_cancel", "Key Cancel", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"kb_save", "Key Save", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
+    {"skin", "Skin", 0.0f, 1.0f, 0.0f, 4608, nullptr, 0, -1, 0.0f},
 };
-static const int kNumParams = 584;
+static const int kNumParams = 629;
 static const int kNumEngineParams = 437;   // 0 .. this - 1 are the engine's keys
 static const int kUiParam = 437;            // ui_open: 0 closed, k + 1 = pick-list of g_popups[k]
 static const int kNumPopups = 146;
 static const int kFirstAppended = 583;
 static const int kFavParam = 418;           // "favourite": the PRESET menu's program (VST programs = favourites)
 static const int kFavSlots = 64;
+static const int kFavSave = 419;            // +FAV (0.1.0's fav_save): opens the naming keyboard
+static const int kFavName = 584, kKbOpen = 585, kKbFirst = 586, kKbCount = 42;
+static const char kKbChars[] = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM-";   // the character keys from kKbFirst, then space, delete, shift, cancel, save
+static const int kFavNameMax = 20;
+static const int kSkin = 628;               // the skin switch (kLocal, global)

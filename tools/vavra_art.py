@@ -29,6 +29,16 @@ LED_ON = (255, 52, 36)
 LED_OFF = (120, 40, 30)
 WHITE = (255, 255, 255)
 
+THEME = "microq"
+
+
+def set_theme(name):
+    """The skin switch's second theme goes here (make_tui.py builds every page once per theme in VAVRA_THEMES): swap the palette above
+    for that theme's colours. Only "microq" is drawn so far; any other name draws the same art (the switch and the doubled TUI work)."""
+    global THEME
+    THEME = name
+
+
 _fonts = {}
 
 
@@ -216,6 +226,20 @@ def list_key(w, h, text, lit, size=16):
         d.rounded_rectangle((0, 0, w - 1, h - 1), 4, fill=CREAM + (255,), outline=BLUE + (255,), width=1)
     f = fit(text, size, w - 12)
     d.text((w // 2, h // 2), text, font=f, fill=(WHITE if lit else INK) + (255,), anchor="mm")
+    return im
+
+
+def key_cap(w, h, text, lit, size=26):
+    """a key of the naming keyboard: a cream cap with a blue rim and a darker lower edge; lit (held) = blue with white text"""
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle((0, 3, w - 1, h - 1), 7, fill=BLUE_DK + (255,))
+    if lit:
+        d.rounded_rectangle((0, 3, w - 1, h - 1), 7, fill=BLUE + (255,), outline=WHITE + (255,), width=2)
+    else:
+        d.rounded_rectangle((0, 0, w - 1, h - 5), 7, fill=CREAM + (255,), outline=BLUE + (255,), width=2)
+    f = fit(text, size, w - 12)
+    d.text((w // 2, (h - 2) // 2 + (2 if lit else 0)), text, font=f, fill=(WHITE if lit else INK) + (255,), anchor="mm")
     return im
 
 
