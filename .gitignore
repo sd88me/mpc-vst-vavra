@@ -5,3 +5,4 @@ dist/
 data/
 *.wav
 tests/data/*.chunk
+skins/

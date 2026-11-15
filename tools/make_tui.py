@@ -201,13 +201,14 @@ class Page:
         self.subs = [[]]              # per sub-tab: [(keys, rect)]
 
     # controls
-    def knob(self, key, cx, cy, cap, red=None):
+    def knob(self, key, cx, cy, cap, red=None, box=(71, 72)):
         red = key in RED_KNOBS if red is None else red
-        A.caption(self.art, cx, cy - 57, cap, size=20, width=114)
+        if cap:
+            A.caption(self.art, cx, cy - 57, cap, size=20, width=114)
         self.kids.append(entry(key, "vknob_red" if red else "vknob", {"version": 1, "handleName": "Data"},
                                "%d %d %d %d" % (cx - KNOB // 2, cy - KNOB // 2, KNOB, KNOB), remap=P(key), focus="Yes"))
         self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40), key, 29))
-        self.pos[key] = (cx - 57, cy - 71, cx + 57, cy + 72)
+        self.pos[key] = (cx - 57, cy - box[0], cx + 57, cy + box[1])
 
     def pick(self, key, cx, cy, w, cap):
         """a pick-list field: the caption on a blue tab at its left (the editor's "Source"), the choice live on the cream part"""
@@ -225,8 +226,9 @@ class Page:
         self.panels.append(pick_panel(key, PARAMS[key]["options"]))
         self.pos[key] = (x0, cy - 17, x0 + w, cy + 17)
 
-    def switch(self, key, cx, cy, cap):
-        A.caption(self.art, cx, cy - 34, cap, size=20, width=120)
+    def switch(self, key, cx, cy, cap, width=120):
+        if cap:
+            A.caption(self.art, cx, cy - 34, cap, size=20, width=width)
         button(self.kids, key, "%d %d 76 36" % (cx - 24, cy - 18), save(A.switch_image(True), "sw_on.png"), save(A.switch_image(False), "sw_off.png"))
         self.pos[key] = (cx - 56, cy - 42, cx + 56, cy + 20)
 
@@ -241,7 +243,7 @@ class Page:
         self.kids.append(label("%d %d %d %d" % (x0 + 8, y0, x1 - x0 - 16, y1 - y0), key, size, hexcol(A.LCD_INK), just))
 
     # Q-Link blocks
-    def block(self, keys, rect=None, pad=6):
+    def block(self, keys, rect=None, pad=3):
         ks = [k for k in keys if k]
         if rect is None:
             boxes = [self.pos[k] for k in ks]
@@ -456,7 +458,218 @@ def page_filters(fn):
     return pg
 
 
-PAGES = [("MAIN", page_main), ("BANKS", page_banks), ("OSC 1/2", page_osc12), ("FILTERS", page_filters)]
+def page_osc3mix(fn):
+    pg = Page("OSC 3/MIX", fn)
+    pg.section(10, 6, 942, 302, "oscillator 3")
+    pg.pick("O3Shape", 244, 72, 350, "SHAPE")
+    pg.pick("O3PwmSource", 704, 72, 350, "PWM SOURCE")
+    ky = 208
+    pitch = [("O3Octave", "Octave"), ("O3Semi", "Semitone"), ("O3Detune", "Detune"), ("O3BendRange", "Bend Range")]
+    wave = [("O3PulseWidth", "Pulsewidth"), ("O3Pwm", "PWM"), ("O3FmAmount", "FM Amount"), ("O3KeyTrack", "Keytrack")]
+    for i, (k, c) in enumerate(pitch):
+        pg.knob(k, 76 + i * 112, ky, c)
+    for i, (k, c) in enumerate(wave):
+        pg.knob(k, 536 + i * 112, ky, c)
+    pg.section(954, 6, 1270, 302, "pitch mod")
+    pg.pick("PitchModSrc", 1112, 72, 280, "SOURCE")
+    pg.pick("O3FmSource", 1112, 118, 280, "O3 FM")
+    pg.knob("PitchModAmount", 1112, ky + 10, "Mod Amount")
+    pg.section(10, 318, 1270, 618, "mixer")
+    mix = [("O1Level", "Osc 1 Level"), ("O1Balance", "Osc 1 Bal"), ("O2Level", "Osc 2 Level"), ("O2Balance", "Osc 2 Bal"),
+           ("O3Level", "Osc 3 Level"), ("O3Balance", "Osc 3 Bal"), ("NoiseLevel", "Noise Level"), ("NoiseBalance", "Noise Bal"),
+           ("RingModLevel", "Ring Level"), ("RingModBalance", "Ring Bal")]
+    for i, (k, c) in enumerate(mix):
+        pg.knob(k, 76 + i * 112 + (i // 4) * 16, 470, c)
+    A.caption(pg.art, 1210, 440, "F1  <  >  F2", size=16, width=110)
+    A.caption(pg.art, 1210, 466, "balance", size=16, width=110)
+    pg.block([k for k, _ in pitch]); pg.block([k for k, _ in wave]); pg.block(["PitchModAmount"])
+    pg.subtab()
+    keys = [k for k, _ in mix]
+    pg.block(keys[0:4]); pg.block(keys[4:8]); pg.block(keys[8:10])
+    return pg
+
+
+def page_amp(fn):
+    pg = Page("AMP & GLIDE", fn)
+    pg.section(10, 6, 634, 302, "amplifier")
+    pg.pick("AmpModSource", 322, 72, 360, "MOD SOURCE")
+    for i, (k, c) in enumerate((("AmpVolume", "Volume"), ("AmpVelocity", "Velocity"), ("AmpModAmount", "Mod Amount"))):
+        pg.knob(k, 210 + i * 112, 208, c)
+    pg.section(646, 6, 1270, 302, "glide")
+    pg.pick("GlideMode", 958, 72, 360, "MODE")
+    pg.switch("GlideEnable", 830, 212, "Glide On")
+    pg.knob("GlideRate", 1010, 208, "Rate")
+    pg.section(10, 318, 634, 618, "unisono")
+    pg.pick("UnisonoCount", 322, 384, 360, "VOICES")
+    pg.switch("VoiceMode", 210, 524, "Mono On")
+    pg.knob("UnisonoDetune", 400, 520, "Detune")
+    pg.section(646, 318, 1270, 618, "noise / external")
+    pg.pick("NoiseModeF1", 958, 420, 400, "FILTER 1 FEED")
+    pg.pick("NoiseModeF2", 958, 500, 400, "FILTER 2 FEED")
+    pg.block(["AmpVolume", "AmpVelocity", "AmpModAmount"])
+    pg.block(["GlideRate", "GlideEnable"])
+    pg.block(["UnisonoDetune", "VoiceMode"])
+    return pg
+
+
+ENV_NAMES = (("FilterEnv", "filter envelope"), ("AmpEnv", "amp envelope"), ("Env3", "envelope 3"), ("Env4", "envelope 4"))
+
+
+def page_env(fn):
+    """four envelope rows: mode and trigger at the left under the title, then A, AL, D, S, D2, S2, R; two blocks a row, two rows a sub-tab"""
+    pg = Page("ENVELOPES", fn)
+    for r, (e, title) in enumerate(ENV_NAMES):
+        y0 = 4 + r * 156
+        pg.section(10, y0, 1270, y0 + 150, title)
+        pg.pick(e + "Mode", 130, y0 + 68, 220, "")
+        ky = y0 + 78
+        knobs = [("Attack", "Attack"), ("AttackLevel", "Att. Level"), ("Decay", "Decay"), ("Sustain", "Sustain"),
+                 ("Decay2", "Decay 2"), ("Sustain2", "Sustain 2"), ("Release", "Release"), ("TriggerMode", "Trigger")]
+        for i, (k, c) in enumerate(knobs):
+            pg.knob(e + k, 330 + i * 112 + (i // 4) * 24, ky, c, box=(66, 70))
+        A.caption(pg.art, 130, y0 + 112, "MODE", size=15)
+    for r, (e, _) in enumerate(ENV_NAMES):
+        if r == 2:
+            pg.subtab()
+        pg.block([e + k for k in ("Attack", "AttackLevel", "Decay", "Sustain")])
+        pg.block([e + k for k in ("Decay2", "Sustain2", "Release", "TriggerMode")])
+    return pg
+
+
+def page_lfo(fn):
+    """three LFO rows: shape, sync and clocked at the left, five knobs; one block per LFO, the three Keytracks as a column block"""
+    pg = Page("LFO", fn)
+    for n in (1, 2, 3):
+        y0 = 4 + (n - 1) * 208
+        l = "Lfo%d" % n
+        pg.section(10, y0, 1270, y0 + 202, "lfo %d" % n)
+        pg.pick(l + "Shape", 150, y0 + 66, 260, "SHAPE")
+        pg.switch(l + "Sync", 90, y0 + 150, "Sync")
+        pg.switch(l + "Clocked", 220, y0 + 150, "Clocked")
+        ky = y0 + 112
+        for i, (k, c) in enumerate((("Speed", "Speed"), ("StartPhase", "Start Phase"), ("Delay", "Delay"), ("Fade", "Fade"))):
+            pg.knob(l + k, 420 + i * 112, ky, c)
+        pg.knob(l + "KeyTrack", 1060, ky, "Keytrack")
+    for n in (1, 2, 3):
+        l = "Lfo%d" % n
+        pg.block([l + k for k in ("Speed", "StartPhase", "Delay", "Fade")])
+    pg.block(["Lfo%dKeyTrack" % n for n in (1, 2, 3)])
+    return pg
+
+
+def page_slots(fn, name, kind, title):
+    """eight modulation slots, two columns of four: source, amount, destination; the amounts are two column blocks"""
+    pg = Page(name, fn)
+    for col in range(2):
+        x0 = 10 + col * 636
+        pg.section(x0, 4, x0 + 624, 618, "%s %d-%d" % (title, col * 4 + 1, col * 4 + 4))
+        for r in range(4):
+            n = col * 4 + r + 1
+            cy = 110 + r * 140
+            k = "Slot%d%s" % (n, kind)
+            A.caption(pg.art, x0 + 34, cy, str(n), size=34)
+            pg.pick(k + "Source", x0 + 180, cy - 26, 240, "SRC")
+            pg.pick(k + "Destination", x0 + 180, cy + 26, 240, "DEST")
+            pg.knob(k + "Amount", x0 + 400, cy + 6, "Amount")
+            if r < 3:
+                ImageDraw.Draw(pg.art).line((x0 + 16, cy + 70, x0 + 608, cy + 70), fill=A.BLUE_LT + (255,), width=1)
+    for col in range(2):
+        pg.block(["Slot%d%sAmount" % (col * 4 + r + 1, kind) for r in range(4)])
+    return pg
+
+
+def page_modifiers(fn):
+    pg = Page("MODIFIERS", fn)
+    for m in range(4):
+        x0, y0 = 10 + (m % 2) * 636, 4 + (m // 2) * 210
+        pg.section(x0, y0, x0 + 624, y0 + 202, "modifier %d" % (m + 1))
+        k = "Mod%d" % (m + 1)
+        pg.pick(k + "Source1", x0 + 200, y0 + 60, 340, "SOURCE A")
+        pg.pick(k + "Operator", x0 + 200, y0 + 104, 340, "OPERATOR")
+        pg.pick(k + "Source2", x0 + 200, y0 + 148, 340, "SOURCE B")
+        pg.knob(k + "Constant", x0 + 480, y0 + 116, "Constant")
+    pg.section(10, 424, 1270, 618, "controller delay")
+    pg.pick("ControllerDelaySource", 400, 530, 420, "SOURCE")
+    pg.knob("ControllerDelay", 820, 532, "Delay")
+    pg.block(["Mod1Constant", "Mod3Constant"])
+    pg.block(["Mod2Constant", "Mod4Constant"])
+    pg.block(["ControllerDelay"])
+    return pg
+
+
+def page_fx(fn):
+    """FX 1 over FX 2: the type in the title row, MIX and the 14 knobs in two rows of eight; the knobs take the names of the chosen
+    effect's parameters (live labels, "-" where the effect has none); four blocks per effect, a sub-tab each"""
+    pg = Page("FX", fn)
+    for e in (1, 2):
+        y0 = 4 + (e - 1) * 310
+        pg.section(10, y0, 1270, y0 + 304, "effect %d" % e)
+        pg.pick("FX%dType" % e, 420, y0 + 16, 340, "TYPE")
+        keys = ["FX%dMix" % e] + ["fx%d_p%d" % (e, i) for i in range(1, 15)]
+        for i, k in enumerate(keys):
+            r, c = i // 8, i % 8
+            cx, cy = 86 + c * 146 + (c // 4) * 22, y0 + 96 + r * 134
+            if i == 0:
+                pg.knob(k, cx, cy, "", box=(62, 64))
+                A.caption(pg.art, cx, cy - 50, "Mix", size=20)
+            else:
+                pg.knob(k, cx, cy, "", box=(62, 64))
+                pg.kids.append(label("%d %d 140 26" % (cx - 70, cy - 63), "fx%d_l%d" % (e, i), 26, hexcol(A.BLUE_DK)))
+        if e == 2:
+            pg.subtab()
+        pg.block(keys[0:4], pad=2); pg.block(keys[4:8], pad=2); pg.block(keys[8:12], pad=2); pg.block(keys[12:15], pad=2)
+    return pg
+
+
+def page_arp(fn):
+    pg = Page("ARP", fn)
+    pg.section(10, 4, 1270, 302, "arpeggiator")
+    pg.pick("ArpMode", 230, 70, 380, "MODE")
+    pg.pick("ArpPattern", 640, 70, 380, "PATTERN")
+    pg.pick("ArpDirection", 1050, 70, 380, "DIRECTION")
+    pg.pick("ArpSortOrder", 230, 130, 380, "SORT ORDER")
+    pg.pick("ArpVeloMode", 640, 130, 380, "VELOCITY")
+    pg.switch("ArpSameNoteOverlap", 940, 212, "Same Note Overlap", width=220)
+    pg.switch("ArpPatternReset", 1150, 212, "Pattern Reset", width=200)
+    A.caption(pg.art, 640, 274, "While MPC plays, the arpeggiator follows its tempo; when stopped, the TEMPO knob sets it.", size=18, width=1100)
+    pg.section(10, 318, 1270, 618, "timing")
+    knobs = [("Tempo", "Tempo"), ("ArpClock", "Clock"), ("ArpLength", "Length"), ("ArpTFactor", "T-Factor"),
+             ("ArpOctaveRange", "Range"), ("ArpMaxNotes", "Max Notes"), ("ArpPatternLength", "Pattern Len")]
+    for i, (k, c) in enumerate(knobs):
+        pg.knob(k, 120 + i * 140 + (i // 4) * 60, 470, c)
+    pg.block([k for k, _ in knobs[:4]])
+    pg.block([k for k, _ in knobs[4:]])
+    return pg
+
+
+def page_steps(fn, first):
+    """eight steps of the user pattern: a column each (step, glide, accent, length, timing); Q-Links on accents and lengths"""
+    pg = Page("ARP STEPS %d-%d" % (first + 1, first + 8), fn)
+    pg.section(10, 4, 1270, 618, "arp steps %d-%d" % (first + 1, first + 8))
+    rows = [("Step", "STEP", 150), ("Glide", "GLIDE", 236), ("Accent", "ACCENT", 330), ("Length", "LENGTH", 430), ("Timing", "TIMING", 530)]
+    for _, cap, y in rows:
+        A.caption(pg.art, 72, y, cap, size=19)
+    for c in range(8):
+        n = first + c
+        cx = 196 + c * 140
+        A.caption(pg.art, cx, 80, str(n + 1), size=30)
+        for kind, _, y in rows:
+            k = "Arp%02d%s" % (n, kind)
+            if kind == "Glide":
+                pg.switch(k, cx - 6, y + 14, "")
+            else:
+                pg.pick(k, cx, y, 132, "")
+    pg.block(["Arp%02dAccent" % (first + c) for c in range(4)]); pg.block(["Arp%02dAccent" % (first + c) for c in range(4, 8)])
+    pg.block(["Arp%02dLength" % (first + c) for c in range(4)]); pg.block(["Arp%02dLength" % (first + c) for c in range(4, 8)])
+    return pg
+
+
+PAGES = [("MAIN", page_main), ("BANKS", page_banks), ("OSC 1/2", page_osc12), ("OSC 3/MIX", page_osc3mix), ("FILTERS", page_filters),
+         ("AMP & GLIDE", page_amp), ("ENVELOPES", page_env), ("LFO", page_lfo),
+         ("MOD FAST", lambda fn: page_slots(fn, "MOD FAST", "F", "fast slots")),
+         ("MOD SLOTS", lambda fn: page_slots(fn, "MOD SLOTS", "S", "slots")),
+         ("MODIFIERS", page_modifiers), ("FX", page_fx), ("ARP", page_arp),
+         ("ARP STEPS 1-8", lambda fn: page_steps(fn, 0)), ("ARP STEPS 9-16", lambda fn: page_steps(fn, 8))]
 
 
 def qlinks_for(pages):
@@ -464,10 +677,11 @@ def qlinks_for(pages):
     for pg in pages:
         for sub, blocks in enumerate(pg.subs):
             q = {"Q-Link %d" % n: -1 for n in range(1, 17)}
+            column = bool(blocks) and all((r[3] - r[1]) > (r[2] - r[0]) for _, r in blocks)
             for gi, (keys, _) in enumerate(blocks[:4]):
                 for i, key in enumerate(keys[:4]):
-                    q["Q-Link %d" % (13 - 4 * gi + i)] = PI(key)
-            maps.append({"Tab": pg.fn + 1, "SubTab": sub + 1, "Bank Direction": "RowTopDown", "Q-Links": q})
+                    q["Q-Link %d" % ((13 + gi - 4 * i) if column else (13 - 4 * gi + i))] = PI(key)
+            maps.append({"Tab": pg.fn + 1, "SubTab": sub + 1, "Bank Direction": "Column" if column else "RowTopDown", "Q-Links": q})
     return {"version": 4, "info": {"version": 1, "type": "CompleteDescription"},
             "Screen Mode Q-Links": {"version": 4, "map": maps}, "Program Mode Q-Links": {"Q-Link %d" % n: -1 for n in range(1, 17)}}
 
@@ -475,7 +689,7 @@ def qlinks_for(pages):
 # ---- offline preview: compose a tab the way the MPC draws it --------------------------------------------------------------
 SAMPLE = {"preset_name": "A001 LosAngeles2019 T", "bank_name": "BANK A", "loading_status": "Ready - ROM loaded",
           "engine_stats": "DROPOUTS 0   CPU 40%", "patch_page_text": "PAGE 1 / 4", "bank_page_text": "1 / 2",
-          "lcd1": "Inst:1  Sound:A001", "lcd2": "LosAngeles2019 T", "fav_text": "FAVOURITES 3 / 64",
+          "fx1_l1": "Speed", "fx1_l2": "Depth", "fx1_l3": "-", "lcd1": "Inst:1  Sound:A001", "lcd2": "LosAngeles2019 T", "fav_text": "FAVOURITES 3 / 64",
           "bank_slot_1": "BANK A", "bank_slot_2": "BANK B", "bank_slot_3": "BANK C", "bank_slot_4": "FORUMONE SOUNDS A",
           "bank_slot_5": "FORUMONE SOUNDS B", "bank_slot_6": "FORUMTHREE UQ A", "bank_slot_7": "FORUMTWO UQ A",
           "bank_slot_8": "FACTORY2001 A", "bank_slot_9": "FACTORYSET 2000", "bank_slot_10": "FACTORYSET 2000 B"}
@@ -550,6 +764,13 @@ def main():
         arts[name] = save(pg.art.convert("RGB"), "bg_%s.png" % re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_"))
         pages.append(pg)
         tabs += pg.tabs(arts[name])
+    for pg in pages:   # the Q-Link frames of one sub-tab must not overlap (the MPC draws them all)
+        for sub, blocks in enumerate(pg.subs):
+            rs = [r for _, r in blocks]
+            for i in range(len(rs)):
+                for j in range(i + 1, len(rs)):
+                    a, b = rs[i], rs[j]
+                    assert not (a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]), "%s sub-tab %d: Q-Link frames overlap %s %s" % (pg.name, sub + 1, a, b)
     on_q = {k for pg in pages for blocks in pg.subs for keys, _ in blocks for k in keys}
     shown = {k for pg in pages for k in pg.pos}
     missing = sorted(shown - on_q - set(POPUPS))
@@ -569,6 +790,7 @@ def main():
         preview(pages, arts, dd)
         preview([pg for pg in pages if pg.name == "OSC 1/2"], arts, dd, open_list=POPUPS.index("O1Shape") + 1)
         preview([pg for pg in pages if pg.name == "FILTERS"], arts, dd, open_list=POPUPS.index("F1ModSource") + 1)
+        preview([pg for pg in pages if pg.name == "MOD FAST"], arts, dd, open_list=POPUPS.index("Slot1FDestination") + 1)
     print("wrote", OUT, "-", len(tabs), "tabs,", len(os.listdir(OUT)), "files,", len(PICK_DEFS), "pick-lists")
 
 
