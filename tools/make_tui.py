@@ -340,18 +340,20 @@ def page_main(fn):
     x0, x1 = 300, 930                                                                      # the LCD
     mid = (x0 + x1) // 2
     d.ellipse((-20, 30, 1300, 800), outline=A.BLUE + (255,), width=3)                       # the oval (its bottom below the page)
-    pw = 6 * 112 + 40
-    d.rounded_rectangle((mid - pw // 2, 6, mid + pw // 2, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)
-    d.rounded_rectangle((12, 6, 262, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)   # the output panel
-    A.band(pg.art, 0, BY0, 1280, BY1)
-    d.rectangle((mid - pw // 2 + 3, BY0 - 2, mid + pw // 2 - 3, BY0 + 4), fill=A.BLUE + (255,))   # the panels open into the bar
-    d.rectangle((15, BY0 - 2, 259, BY0 + 4), fill=A.BLUE + (255,))
+    dx, dy = 1176, (BY0 + BY1) // 2                                                       # the red data dial; the bar ends at it
+    KP, KQ = 108, 118                                                                      # key / knob pitch in the panel
+    pw = 20 + 6 * KP + 30 + 2 * KQ + 16
+    px0 = mid - pw // 2
+    d.rounded_rectangle((px0, 6, px0 + pw, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)
+    A.band(pg.art, 0, BY0, dx, BY1)
+    d.rectangle((px0 + 3, BY0 - 2, px0 + pw - 3, BY0 + 4), fill=A.BLUE + (255,))          # the panel opens into the bar
     keys = (("all_notes_off", "PANIC"), ("init_patch", "RELOAD"), ("random_patch", "RANDOM"), ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("skin", "SKIN"))
     for i, (k, cap) in enumerate(keys):
-        pg.key(k, mid - pw // 2 + 20 + 56 + i * 112, 72, cap, w=108)
-    # output, top left: its own panel joined to the bar, like the keys'
-    pg.knob("AmpVolume", 76, 78, "Volume", box=(64, 66))
-    pg.knob("gain", 198, 78, "Output Gain", box=(64, 66))
+        pg.key(k, px0 + 20 + KP // 2 + i * KP, 72, cap, w=KP)
+    xd = px0 + 20 + 6 * KP + 15                                                            # a thin rule, then the output pair
+    d.line((xd, 22, xd, BY0 - 12), fill=A.BLUE_LT + (255,), width=2)
+    pg.knob("AmpVolume", xd + 15 + KQ // 2, 78, "Volume", box=(64, 66))
+    pg.knob("gain", xd + 15 + KQ // 2 + KQ, 78, "Output Gain", box=(64, 66))
     # the bar: badge, LCD, data dial
     A.wordmark(pg.art, 26, BY0 + 10, 250)
     y0, y1 = BY0 + 10, BY1 - 10
@@ -364,7 +366,6 @@ def page_main(fn):
     pg.kids.append(label("%d %d %d 26" % (x0 + 12, y0 + 26, x1 - x0 - 24), "lcd2", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
     display_row(pg, x0, r1 + 1, r2, [(570, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 22, aw=30)
     display_row(pg, x0, r2 + 1, r3, [(670, "loading_status", None, None), (x1, "engine_stats", None, None)], 18)
-    dx, dy = 1080, (BY0 + BY1) // 2
     pg.kids.append(entry("preset dial", tag("vdial"), {"version": 1, "handleName": "Data"}, "%d %d %d %d" % (dx - DIAL // 2, dy - DIAL // 2, DIAL, DIAL),
                          remap=P("preset"), focus="Yes"))
     # the perf knobs under the bar, big, joined to it by blue lines with pointer tabs over each knob
