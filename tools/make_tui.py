@@ -336,7 +336,7 @@ def page_main(fn):
     the perf knobs under the bar, big, joined to it by blue lines."""
     pg = Page("MAIN", fn)
     d = ImageDraw.Draw(pg.art)
-    BY0, BY1 = 146, 272                                                                    # the blue bar
+    BY0, BY1 = 146, 304                                                                    # the blue bar
     x0, x1 = 300, 930                                                                      # the LCD
     mid = (x0 + x1) // 2
     d.ellipse((-20, 30, 1300, 800), outline=A.BLUE + (255,), width=3)                       # the oval (its bottom below the page)
@@ -355,38 +355,38 @@ def page_main(fn):
     pg.knob("AmpVolume", xd + 15 + KQ // 2, 78, "Volume", box=(64, 66))
     pg.knob("gain", xd + 15 + KQ // 2 + KQ, 78, "Output Gain", box=(64, 66))
     # the bar: badge, LCD, data dial
-    A.wordmark(pg.art, 26, BY0 + 10, 250)
-    y0, y1 = BY0 + 10, BY1 - 10
+    A.wordmark(pg.art, 26, BY0 + 22, 250)
+    y0, y1 = BY0 + 12, BY1 - 12
     A.lcd(pg.art, x0, y0, x1, y1, cells=0)
     d = ImageDraw.Draw(pg.art)
-    r1, r2, r3 = y0 + 52, y0 + 81, y1
+    r1, r2, r3 = y0 + 70, y0 + 106, y1
     d.line((x0 + 6, r1, x1 - 6, r1), fill=A.LCD_DK + (255,), width=2)
     d.line((x0 + 6, r2, x1 - 6, r2), fill=A.LCD_DK + (255,), width=1)
-    pg.kids.append(label("%d %d %d 26" % (x0 + 12, y0 + 1, x1 - x0 - 24), "lcd1", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
-    pg.kids.append(label("%d %d %d 26" % (x0 + 12, y0 + 26, x1 - x0 - 24), "lcd2", 26, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
-    display_row(pg, x0, r1 + 1, r2, [(570, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 22, aw=30)
-    display_row(pg, x0, r2 + 1, r3, [(670, "loading_status", None, None), (x1, "engine_stats", None, None)], 18)
+    pg.kids.append(label("%d %d %d 34" % (x0 + 12, y0 + 1, x1 - x0 - 24), "lcd1", 34, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    pg.kids.append(label("%d %d %d 34" % (x0 + 12, y0 + 34, x1 - x0 - 24), "lcd2", 34, hexcol(A.LCD_INK), "left verticallyCentred", "Bold"))
+    display_row(pg, x0, r1 + 1, r2, [(570, "bank_name", "bank_prev", "bank_next"), (x1, "preset_name", "preset_prev", "preset_next")], 27, aw=32)
+    display_row(pg, x0, r2 + 1, r3, [(670, "loading_status", None, None), (x1, "engine_stats", None, None)], 22)
     pg.kids.append(entry("preset dial", tag("vdial"), {"version": 1, "handleName": "Data"}, "%d %d %d %d" % (dx - DIAL // 2, dy - DIAL // 2, DIAL, DIAL),
                          remap=P("preset"), focus="Yes"))
     # the perf knobs under the bar, big, joined to it by blue lines with pointer tabs over each knob
-    ky = 488
+    ky = 504
     groups = [("filter 1", [("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay")], 120),
               ("amp & mod", [("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix")], 740)]
     for title, knobs, gx in groups:
         xs = [gx + i * 140 for i in range(len(knobs))]
         gm = (xs[0] + xs[-1]) // 2
-        d.line((gm, BY1, gm, 368), fill=A.BLUE + (255,), width=3)
-        d.line((xs[0], 368, xs[-1], 368), fill=A.BLUE + (255,), width=3)
+        d.line((gm, BY1, gm, 386), fill=A.BLUE + (255,), width=3)
+        d.line((xs[0], 386, xs[-1], 386), fill=A.BLUE + (255,), width=3)
         for x in xs:
-            d.line((x, 368, x, 376), fill=A.BLUE + (255,), width=3)
-            d.polygon([(x - 7, 376), (x + 7, 376), (x, 384)], fill=A.BLUE + (255,))
+            d.line((x, 386, x, 392), fill=A.BLUE + (255,), width=3)
+            d.polygon([(x - 7, 392), (x + 7, 392), (x, 400)], fill=A.BLUE + (255,))
         t = A.text_img(title.upper(), 16, A.WHITE, slant=0.2)
         tw = t.width + 22
-        d.rounded_rectangle((gm - tw // 2, 304, gm + tw // 2, 330), 7, fill=A.BLUE + (255,))
-        pg.art.alpha_composite(t, (gm - t.width // 2, 317 - t.height // 2))
+        d.rounded_rectangle((gm - tw // 2, 330, gm + tw // 2, 356), 7, fill=A.BLUE + (255,))
+        pg.art.alpha_composite(t, (gm - t.width // 2, 343 - t.height // 2))
         d = ImageDraw.Draw(pg.art)
         for (k, c), x in zip(knobs, xs):
-            pg.knob(k, x, ky, c, size=BIG, box=(98, 92))
+            pg.knob(k, x, ky, c, size=BIG, box=(98, 90))
         pg.block([k for k, _ in knobs])
     pg.block(["AmpVolume", "gain"])
     pg.block(["bank_index", "preset"], rect=(x0 - 4, r1, x1 + 4, r2 + 1))
