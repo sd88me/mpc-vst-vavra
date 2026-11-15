@@ -7,7 +7,7 @@ Popups are drawn pick-lists on ONE ui_open parameter (index 437; value k + 1 = t
 uses). The bank and sound names in the displays take the data wheel and Q-Links (an invisible value field over each).
     python3 tools/make_tui.py              # -> skins/   (build-sdk.sh copies it to Plugin Skins/)
     python3 tools/make_tui.py --preview    # also docs/skin-preview/<tab>.png, composed offline (Titillium at the MPC's text scale)"""
-import hashlib, json, os, re, shutil, sys
+import hashlib, json, math, os, re, shutil, sys
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,8 +34,9 @@ def kname(kind, size):
     return "vknob%s%s" % (kind, "" if size == KNOB else str(size))
 CLEAR = "clear.png"
 # The skin switch (parameter "skin", global): every page is built once per theme and the passes are merged into one TUI.json, each entry
-# shown only while skin == its theme's index. VAVRA_THEMES=microq,alt builds both; until the second theme is drawn, one pass (no doubling).
-THEMES = [t for t in os.environ.get("VAVRA_THEMES", "microq").split(",") if t]
+# shown only while skin == its theme's index: microq (0, the yellow panel), alt (1, the dark-blue microQ), phoenix (2, the Phoenix
+# Edition). VAVRA_THEMES=microq builds one. SKIN (skin_next) steps round them.
+THEMES = [t for t in os.environ.get("VAVRA_THEMES", "microq,alt,phoenix").split(",") if t]
 THEME = THEMES[0]
 
 
@@ -119,7 +120,9 @@ def label(b, key, h=22, colour=None, just="horizontallyCentred verticallyCentred
     return entry("label", "Label", {"version": 1, "textStyle": text_style(h, colour, just, style), "type": "Value", "handleName": "Data"}, b, P(key))
 
 
-FOCUS = {"version": 1, "backgroundColour": "00000000", "outlineColour": hexcol(A.BLUE_DK), "backgroundInset": 4.0, "outlineThickness": 2.0}
+def focus_style():
+    """the focus outline in the current theme's caption colour"""
+    return {"version": 1, "backgroundColour": "00000000", "outlineColour": hexcol(A.BLUE_DK), "backgroundInset": 4.0, "outlineThickness": 2.0}
 FIELDS = set()                                         # (w, h) of every display field that steps a value (display_row)
 FIELD_KEY = {"bank_name": "bank_index", "preset_name": "preset"}
 
@@ -127,7 +130,7 @@ FIELD_KEY = {"bank_name": "bank_index", "preset_name": "preset"}
 def definitions():
     def knob_def(strip, size=KNOB):
         return component([
-            entry("focus", "Focus", FOCUS, "-6 -6 %d %d" % (size + 12, size + 12), visible="WhenFocussed"),
+            entry("focus", "Focus", focus_style(), "-6 -6 %d %d" % (size + 12, size + 12), visible="WhenFocussed"),
             entry("knob", "Knob", {"version": 3, "knobType": "FilmStrip", "filmStrip": strip, "numFrames": 101, "invert": False,
                                    "dragOrientation": "Vertical", "handleName": "Data"}, "0 0 %d %d" % (size, size)),
         ], actions=[act("Mouse Down", "Q-Link"), act("Double Click", "Show Overlay", "knob overlay"), act("Enter Pressed", "Show Overlay", "knob overlay")])
@@ -139,15 +142,17 @@ def definitions():
     out = [{"key": "knob overlay", "value": overlay}]
     for t in THEMES:
         pre = "" if t == THEMES[0] else t + "_"
+        A.set_theme(t)
         for size in KNOB_SIZES:
             for kind in ("", "_red", "_bi"):
                 out.append({"key": pre + kname(kind, size), "value": knob_def(pre + kname(kind, size) + ".png", size)})
         out.append({"key": pre + "vdial", "value": knob_def(pre + "dial_vv.png", DIAL)})
+    A.set_theme(THEMES[0])
     for w, h in sorted(FIELDS):      # an invisible value slider over a live name: the data wheel, a Q-Link or a drag steps it
         ts = {"version": 1, "font": {"version": 1, "name": "Roboto", "style": "Regular", "height": 20.0}, "colour": "00000000",
               "justification": "horizontallyCentred verticallyCentred", "case": "Original"}
         out.append({"key": "lcdfield%dx%d" % (w, h), "value": component([
-            entry("focus", "Focus", FOCUS, "0 0 %d %d" % (w, h), visible="WhenFocussed"),
+            entry("focus", "Focus", focus_style(), "0 0 %d %d" % (w, h), visible="WhenFocussed"),
             entry("field", "Knob", {"version": 4, "knobType": "ValueSlider", "textStyle": ts, "dragOrientation": "Horizontal",
                                     "handleName": "Data"}, "0 0 %d %d" % (w, h)),
         ], actions=[act("Mouse Down", "Q-Link")])})
@@ -234,7 +239,7 @@ class Page:
         bi = "options" not in p and p.get("min", 0) < 0 < p.get("max", 0)     # a -64 .. +63 value: the ring fills from the top centre
         self.kids.append(entry(key, tag(kname("_red" if red else "_bi" if bi else "", size)), {"version": 1, "handleName": "Data"},
                                "%d %d %d %d" % (cx - size // 2, cy - size // 2, size, size), remap=P(key), focus="Yes"))
-        self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40 + g // 2), key, 29 + g // 8))
+        self.kids.append(label("%d %d 112 30" % (cx - 56, cy + 40 + g // 2), key, 29 + g // 8, hexcol(A.VALUE)))
         self.pos[key] = (cx - 57, cy - box[0], cx + 57, cy + box[1])
 
     def pick(self, key, cx, cy, w, cap):
@@ -245,7 +250,7 @@ class Page:
         x0 = cx - w // 2
         if cap:
             d.rectangle((x0 + 2, cy - 15, x0 + tab, cy + 15), fill=A.BLUE + (255,))
-            d.text((x0 + tab // 2 + 1, cy), cap, font=A.F(15), fill=A.WHITE + (255,), anchor="mm")
+            d.text((x0 + tab // 2 + 1, cy), cap, font=A.F(15), fill=A.ON_BLUE + (255,), anchor="mm")
         self.kids.append(label("%d %d %d %d" % (x0 + tab + 8, cy - 17, w - tab - 44, 34), key, 25, hexcol(A.INK), "left verticallyCentred"))
         self.kids.append(entry(key + " field", "Button", {"version": 2, "onImage": CLEAR, "offImage": CLEAR, "buttonId": POPUPS.index(key) + 1,
                                                           "numButtonsInGroup": UI_STEPS, "handleName": "Data", "gestureBehaviour": GESTURE},
@@ -259,7 +264,7 @@ class Page:
         button(self.kids, key, "%d %d 76 36" % (cx - 24, cy - 18), save(A.switch_image(True), "sw_on.png"), save(A.switch_image(False), "sw_off.png"))
         self.pos[key] = (cx - 56, cy - 42, cx + 56, cy + 20)
 
-    def key(self, key, cx, cy, cap, w=110, h=70, ink=A.BLUE_DK):
+    def key(self, key, cx, cy, cap, w=110, h=70, ink=None):
         tag = "key_%s_%dx%d" % (key, w, h)
         on = save(A.oval_key(w, h, cap, True, ink=ink), tag + "_on.png")
         off = save(A.oval_key(w, h, cap, False, ink=ink), tag + "_off.png")
@@ -331,7 +336,7 @@ def display_row(pg, x0, y0, y1, fields, size, aw=40):
 # ---- the pages ---------------------------------------------------------------------------------------------------------------
 def page_main(fn):
     """MAIN, laid out like the microQ's front: the six keys in a blue-outlined panel centred over the LCD and joined to the blue bar
-    (where Inst 1-4 sit), OUTPUT (volume, output gain) top left, the bar with theusualsuspects' badge, the LCD (the microQ's two lines,
+    (where Inst 1-4 sit) with volume / output gain at its right, the bar with the Vavra script, the LCD (the microQ's two lines,
     bank | sound with arrows, status | CPU) and the red data dial (it steps the sound, as in the microQ's Play mode), the blue oval, and
     the perf knobs under the bar, big, joined to it by blue lines."""
     pg = Page("MAIN", fn)
@@ -339,15 +344,34 @@ def page_main(fn):
     BY0, BY1 = 146, 334                                                                    # the blue bar, a wide margin round the LCD
     x0, x1 = 300, 930                                                                      # the LCD
     mid = (x0 + x1) // 2
+    base = pg.art.copy()                                                                   # the bare panel, sweeps and all
     d.ellipse((-20, 30, 1300, 800), outline=A.BLUE + (255,), width=3)                       # the oval (its bottom below the page)
     dx, dy = 1150, (BY0 + BY1) // 2                                                       # the red data dial, taller than the bar; the bar ends at it
     KP, KQ = 100, 110                                                                      # key / knob pitch in the panel
     pw = 20 + 6 * KP + 30 + 2 * KQ + 16
     px0 = mid - pw // 2
-    d.rounded_rectangle((px0, 6, px0 + pw, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)
+    m = Image.new("L", pg.art.size, 0)                                                     # inside the key panel: the bare panel (the oval
+    ImageDraw.Draw(m).rounded_rectangle((px0, 6, px0 + pw, BY0 + 30), 14, fill=255)        # stops at its outline, the sweeps run on)
+    pg.art.paste(base, (0, 0), m)
+    d.rounded_rectangle((px0, 6, px0 + pw, BY0 + 30), 14, outline=A.BLUE + (255,), width=3)
     A.band(pg.art, 0, BY0, dx, BY1)
+    if A.THEME == "phoenix":                                                               # the Phoenix's dial ring and its scale
+        rr = DIAL // 2 + 12
+        dx, dy = dx - 3, dy - 4                                                            # the dial's face centre in its frame
+        ring = Image.new("RGBA", pg.art.size, (0, 0, 0, 0))
+        rd = ImageDraw.Draw(ring)
+        rd.ellipse((dx - rr, dy - rr, dx + rr, dy + rr), fill=A.BLUE + (255,))
+        for k in range(61):
+            t = math.radians(135 + 270 * k / 60)
+            r0 = rr - (13 if k % 5 == 0 else 7)
+            rd.line((dx + math.cos(t) * r0, dy + math.sin(t) * r0, dx + math.cos(t) * (rr - 3), dy + math.sin(t) * (rr - 3)),
+                    fill=(222, 170, 170, 255), width=2)
+        ring.putalpha(Image.composite(Image.new("L", ring.size, 0), ring.getchannel("A"), m.point(lambda v: 255 if v else 0)))
+        pg.art.alpha_composite(ring)                                                       # behind the key panel
+        d = ImageDraw.Draw(pg.art)
+        dx, dy = dx + 3, dy + 4
     d.rectangle((px0 + 3, BY0 - 2, px0 + pw - 3, BY0 + 4), fill=A.BLUE + (255,))          # the panel opens into the bar
-    keys = (("all_notes_off", "PANIC"), ("init_patch", "RELOAD"), ("random_patch", "RANDOM"), ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("skin", "SKIN"))
+    keys = (("all_notes_off", "PANIC"), ("init_patch", "RELOAD"), ("random_patch", "RANDOM"), ("fav_save", "+ FAV"), ("fav_delete", "- FAV"), ("skin_next", "SKIN"))
     for i, (k, cap) in enumerate(keys):
         pg.key(k, px0 + 20 + KP // 2 + i * KP, 72, cap, w=KP)
     xd = px0 + 20 + 6 * KP + 15                                                            # a thin rule, then the output pair
@@ -355,7 +379,9 @@ def page_main(fn):
     pg.knob("AmpVolume", xd + 15 + KQ // 2, 78, "Volume", box=(64, 66))
     pg.knob("gain", xd + 15 + KQ // 2 + KQ, 78, "Output Gain", box=(64, 66))
     # the bar: badge, LCD, data dial
-    A.wordmark(pg.art, 26, BY0 + 38, 250)
+    wm = Image.new("RGBA", (300, 300), (0, 0, 0, 0))
+    wh = A.wordmark(wm, 0, 0, 236)
+    pg.art.alpha_composite(wm.crop((0, 0, 236, wh)), (30, (BY0 + BY1) // 2 - wh // 2))
     y0, y1 = BY0 + 26, BY1 - 26
     A.lcd(pg.art, x0, y0, x1, y1, cells=0)
     d = ImageDraw.Draw(pg.art)
@@ -380,7 +406,7 @@ def page_main(fn):
         for x in xs:
             d.line((x, 408, x, 414), fill=A.BLUE + (255,), width=3)
             d.polygon([(x - 7, 414), (x + 7, 414), (x, 422)], fill=A.BLUE + (255,))
-        t = A.text_img(title.upper(), 16, A.WHITE, slant=0.2)
+        t = A.text_img(title.upper(), 16, A.ON_BLUE, slant=0.2)
         tw = t.width + 22
         d.rounded_rectangle((gm - tw // 2, 356, gm + tw // 2, 382), 7, fill=A.BLUE + (255,))
         pg.art.alpha_composite(t, (gm - t.width // 2, 369 - t.height // 2))
@@ -400,9 +426,9 @@ def page_banks(fn):
     pg = Page("BANKS", fn)
     A.band(pg.art, 0, 0, 1280, 74)
     display(pg, 20, 13, 800, 61, [([(320, "bank_name", "bank_prev", "bank_next"), (800, "preset_name", "preset_prev", "preset_next")], 26)])
-    pg.key("random_patch", 900, 38, "RANDOM", w=116, h=66, ink=A.WHITE)
-    pg.key("fav_save", 1030, 38, "+ FAV", w=116, h=66, ink=A.WHITE)
-    pg.key("fav_delete", 1160, 38, "- FAV", w=116, h=66, ink=A.WHITE)
+    pg.key("random_patch", 900, 38, "RANDOM", w=116, h=66, ink=A.ON_BLUE)
+    pg.key("fav_save", 1030, 38, "+ FAV", w=116, h=66, ink=A.ON_BLUE)
+    pg.key("fav_delete", 1160, 38, "- FAV", w=116, h=66, ink=A.ON_BLUE)
     layer = Image.new("RGBA", pg.art.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
     on_cache = {}
@@ -411,7 +437,7 @@ def page_banks(fn):
         S = 4
         im = Image.new("RGBA", (w * S, h * S), (0, 0, 0, 0))
         dd = ImageDraw.Draw(im)
-        dd.rounded_rectangle((0, 0, w * S - 1, h * S - 1), 5 * S, fill=A.BLUE + (60,), outline=A.BLUE_DK + (255,), width=3 * S)
+        dd.rounded_rectangle((0, 0, w * S - 1, h * S - 1), 5 * S, fill=A.BLUE + (40,), outline=A.BLUE_DK + (255,), width=3 * S)
         lx, ly, lr = 14 * S, h * S // 2, 5 * S
         dd.ellipse((lx - lr - S, ly - lr - S, lx + lr + S, ly + lr + S), fill=(60, 40, 0, 255))
         dd.ellipse((lx - lr, ly - lr, lx + lr, ly + lr), fill=A.LED_ON + (255,))
@@ -419,16 +445,16 @@ def page_banks(fn):
         return im.resize((w, h), Image.LANCZOS)
 
     def tile(key, x, y, w, h):
-        ld.rounded_rectangle((x, y, x + w - 1, y + h - 1), 5, fill=(255, 250, 220, 120), outline=A.BLUE + (200,), width=1)
-        pg.kids.append(label("%d %d %d %d" % (x + 28, y, w - 34, h), key, 22, hexcol(A.INK), "left verticallyCentred"))
+        ld.rounded_rectangle((x, y, x + w - 1, y + h - 1), 5, fill=A.TILE + (56,), outline=A.BLUE + (150,), width=1)
+        pg.kids.append(label("%d %d %d %d" % (x + 28, y, w - 34, h), key, 22, hexcol(A.TILE_INK), "left verticallyCentred"))
         if (w, h) not in on_cache:
             on_cache[(w, h)] = save(tile_on(w, h), "tile_on_%dx%d.png" % (w, h))
         button(pg.kids, key, "%d %d %d %d" % (x, y, w, h), on_cache[(w, h)], CLEAR, name=key + " tile")
 
     def page_stepper(cx, cy, w, h, get, prev, nxt):
         aw, x0, y0 = 40, cx - w // 2, cy - h // 2
-        ld.rounded_rectangle((x0 + aw, y0, x0 + w - aw - 1, y0 + h - 1), 5, fill=(255, 250, 220, 160), outline=A.BLUE + (220,), width=1)
-        pg.kids.append(label("%d %d %d %d" % (x0 + aw, y0, w - 2 * aw, h), get, 21, hexcol(A.INK)))
+        ld.rounded_rectangle((x0 + aw, y0, x0 + w - aw - 1, y0 + h - 1), 5, fill=A.TILE + (90,), outline=A.BLUE + (180,), width=1)
+        pg.kids.append(label("%d %d %d %d" % (x0 + aw, y0, w - 2 * aw, h), get, 21, hexcol(A.TILE_INK)))
         d = ImageDraw.Draw(pg.art)
         for k, bx, dr in ((prev, x0, -1), (nxt, x0 + w - aw, 1)):
             A.tri(d, bx + aw // 2, y0 + h // 2, dr, 10, A.BLUE_DK)
@@ -459,9 +485,9 @@ def keyboard(pg):
     ind = ["IndexedEnabling/1/2/Parameter %d" % PI("kb_open")]
     panel = A.panel()
     d = ImageDraw.Draw(panel)
-    d.rounded_rectangle((20, 8, 1260, 620), 12, fill=A.BLUE_DK + (255,))
+    d.rounded_rectangle((20, 8, 1260, 620), 12, fill=A.SEL + (255,))
     d.rounded_rectangle((24, 12, 1256, 616), 10, fill=A.BLUE + (255,))
-    t = A.text_img("FAVOURITE NAME", 22, A.WHITE, slant=0.2)
+    t = A.text_img("FAVOURITE NAME", 22, A.ON_BLUE, slant=0.2)
     panel.alpha_composite(t, (52, 52 - t.height // 2))
     d.rounded_rectangle((300, 24, 1232, 80), 7, fill=A.CREAM + (255,), outline=A.BLUE_DK + (255,), width=2)
     pg.overlay.append(entry("kb panel", "Image", {"version": 2, "imageType": "Regular", "colour": "0", "image": save(panel.convert("RGB"), "kb_panel.png")},
@@ -598,7 +624,7 @@ def page_amp(fn):
     pg.pick("GlideMode", 958, 72, 360, "MODE")
     pg.switch("GlideEnable", 830, 212, "Glide On")
     pg.knob("GlideRate", 1010, 208, "Rate")
-    pg.section(10, 318, 634, 618, "unisono")
+    pg.section(10, 318, 634, 618, "unison")
     pg.pick("UnisonoCount", 322, 384, 360, "VOICES")
     pg.switch("VoiceMode", 210, 524, "Mono On")
     pg.knob("UnisonoDetune", 400, 520, "Detune")
@@ -764,7 +790,7 @@ def page_steps(fn, first):
 
 
 PAGES = [("MAIN", page_main), ("BANKS", page_banks), ("OSC 1/2", page_osc12), ("OSC 3/MIX", page_osc3mix), ("FILTERS", page_filters),
-         ("AMP & GLIDE", page_amp), ("ENVELOPES", page_env), ("LFO", page_lfo),
+         ("ENVELOPES", page_env), ("AMP & GLIDE", page_amp), ("LFO", page_lfo),
          ("MOD FAST", lambda fn: page_slots(fn, "MOD FAST", "F", "fast slots")),
          ("MOD SLOTS", lambda fn: page_slots(fn, "MOD SLOTS", "S", "slots")),
          ("MODIFIERS", page_modifiers), ("FX", page_fx), ("ARP", page_arp),
@@ -822,9 +848,9 @@ def preview(pages, arts, defs, open_list=None, sub=0, suffix="", keyboard=False)
                 continue
             if (kb in hs) != keyboard and (keyboard or kb in hs):
                 continue
-            if cd["type"] == "vdial":
-                im.alpha_composite(Image.open(os.path.join(OUT, "dial_vv.png")).crop((0, DIAL * 30, DIAL, DIAL * 31)).convert("RGBA"), (x, y))
-            elif cd["type"].startswith("vknob"):
+            if cd["type"].endswith("vdial"):
+                im.alpha_composite(Image.open(os.path.join(OUT, cd["type"][:-5] + "dial_vv.png")).crop((0, DIAL * 30, DIAL, DIAL * 31)).convert("RGBA"), (x, y))
+            elif "vknob" in cd["type"]:
                 st = Image.open(os.path.join(OUT, cd["type"] + ".png"))
                 fr = 85 if "_red" in cd["type"] else 70 if "_bi" in cd["type"] else 45
                 im.alpha_composite(st.crop((0, w * fr, w, w * (fr + 1))).convert("RGBA"), (x, y))
@@ -927,6 +953,9 @@ def main():
         preview([pg for pg in pages if pg.name == "FILTERS"], arts, dd, open_list=POPUPS.index("F1ModSource") + 1)
         preview([pg for pg in pages if pg.name == "MOD FAST"], arts, dd, open_list=POPUPS.index("Slot1FDestination") + 1)
         preview([pg for pg in pages if pg.name == "MAIN"], arts, dd, keyboard=True)
+        for t, (tpages, tarts, _) in zip(THEMES[1:], passes[1:]):     # the other themes: every page, suffixed
+            preview(tpages, tarts, dd, suffix="_" + t)
+            preview([pg for pg in tpages if pg.name == "MAIN"], tarts, dd, keyboard=True, suffix="_" + t)
     print("wrote", OUT, "-", len(tabs), "tabs,", len(os.listdir(OUT)), "files,", len(PICK_DEFS), "pick-lists,", len(THEMES), "theme(s)")
 
 

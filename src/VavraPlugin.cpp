@@ -202,7 +202,7 @@ public:
         if (t_pushing == index) return;          // the host echoing what the worker just told it
         if (index == kSkin)                      // global, not part of a project: a project load leaves it alone (the worker re-asserts it)
         {
-            const int v = plain >= 0.5f ? 1 : 0;
+            const int v = std::max(0, std::min(kSkinCount - 1, (int)std::lround(plain)));
             std::lock_guard<std::mutex> g(skinMu_);
             if (!loading_.load() && v != skin_.load()) { skin_.store(v); skinDirty_.store(true); }
             return;
@@ -281,7 +281,7 @@ public:
         const PSpec& s = g_pspecs[index];
         char buf[128];
         if (index == kFavName) { std::lock_guard<std::mutex> g(kbMu_); out = kbName_ + "_"; return true; }
-        if (index == kSkin) { out = plain >= 0.5f ? "Alternative" : "microQ"; return true; }
+        if (index == kSkin) { static const char* n[] = {"microQ", "Dark Blue", "Phoenix"}; out = n[std::max(0, std::min(2, (int)std::lround(plain)))]; return true; }
         if (s.flags & kText) { out = engineGet(s.key, buf, sizeof buf) ? buf : ""; return true; }   // readouts and tile names
         if (s.flags & (kMomentary | kUi | kReserved)) { out = ""; return true; }
         return false;
@@ -593,6 +593,13 @@ private:
         const long long now = nowMs();
         if (now - lastFire_[(size_t)index] < 250) return;   // the second report of one tap
         lastFire_[(size_t)index] = now;
+        if (index == kSkinNext)   // SKIN: the next skin round (the worker writes the file and tells the host)
+        {
+            std::lock_guard<std::mutex> g(skinMu_);
+            skin_.store((skin_.load() + 1) % kSkinCount);
+            skinDirty_.store(true);
+            return;
+        }
         if (index == kFavSave)   // open the keyboard on the sound's name; the engine takes the sound now
         {
             if (!engineReady()) return;
@@ -651,18 +658,22 @@ private:
         engineSet("fav_save_as", name.c_str());   // the favourite count changes: the worker renames the PRESET menu's entries
     }
 
-    // ---- skin switch (kLocal, global): "microq" or "alt" in <plugin folder>/vavra-skin.txt --------------------------------------
+    // ---- skin switch (kLocal, global): "microq", "alt" (dark blue) or "phoenix" in <plugin folder>/vavra-skin.txt --------------
+    static const char* skinWord(int v) { static const char* w[] = {"microq", "alt", "phoenix"}; return w[v >= 0 && v < kSkinCount ? v : 0]; }
     int readSkin() const
     {
         std::ifstream f(skinFile_);
         std::string w;
-        return (f >> w && w == "alt") ? 1 : 0;
+        if (f >> w)
+            for (int i = 0; i < kSkinCount; ++i)
+                if (w == skinWord(i)) return i;
+        return 0;
     }
 
     void writeSkin(int v) const   // worker thread (.tmp + rename)
     {
         const std::string tmp = skinFile_ + ".tmp";
-        { std::ofstream f(tmp, std::ios::trunc); if (!f) return; f << (v ? "alt" : "microq") << "\n"; }
+        { std::ofstream f(tmp, std::ios::trunc); if (!f) return; f << skinWord(v) << "\n"; }
         std::rename(tmp.c_str(), skinFile_.c_str());
     }
 

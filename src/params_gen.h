@@ -246,8 +246,8 @@ static const PSpec g_pspecs[] = {
     {"GlideMode", "Glide Mode", 0.0f, 3.0f, 0.0f, 1032, ch_57, 4, -1, 0.0f},
     {"GlideRate", "Glide Rate", 0.0f, 127.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
     {"VoiceMode", "Mono", 0.0f, 1.0f, 0.0f, 1032, ch_59, 2, -1, 0.0f},
-    {"UnisonoCount", "Unisono", 0.0f, 5.0f, 0.0f, 1032, ch_60, 6, -1, 0.0f},
-    {"UnisonoDetune", "Unisono Detune", 0.0f, 127.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
+    {"UnisonoCount", "Unison", 0.0f, 5.0f, 0.0f, 1032, ch_60, 6, -1, 0.0f},
+    {"UnisonoDetune", "Unison Detune", 0.0f, 127.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
     {"O1Level", "Osc 1 Level", 0.0f, 127.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
     {"O1Balance", "Osc 1 Balance", -64.0f, 63.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
     {"O2Level", "Osc 2 Level", 0.0f, 127.0f, 0.0f, 1024, nullptr, 0, -1, 0.0f},
@@ -814,9 +814,10 @@ static const PSpec g_pspecs[] = {
     {"kb_shift", "Key Shift", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
     {"kb_cancel", "Key Cancel", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
     {"kb_save", "Key Save", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
-    {"skin", "Skin", 0.0f, 1.0f, 0.0f, 4608, nullptr, 0, -1, 0.0f},
+    {"skin", "Skin", 0.0f, 2.0f, 0.0f, 4608, nullptr, 0, -1, 0.0f},
+    {"skin_next", "Next Skin", 0.0f, 1.0f, 0.0f, 4609, nullptr, 0, -1, 0.0f},
 };
-static const int kNumParams = 629;
+static const int kNumParams = 630;
 static const int kNumEngineParams = 437;   // 0 .. this - 1 are the engine's keys
 static const int kUiParam = 437;            // ui_open: 0 closed, k + 1 = pick-list of g_popups[k]
 static const int kNumPopups = 146;
@@ -828,3 +829,5 @@ static const int kFavName = 584, kKbOpen = 585, kKbFirst = 586, kKbCount = 42;
 static const char kKbChars[] = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM-";   // the character keys from kKbFirst, then space, delete, shift, cancel, save
 static const int kFavNameMax = 20;
 static const int kSkin = 628;               // the skin switch (kLocal, global)
+static const int kSkinNext = 629;           // SKIN: the next skin
+static const int kSkinCount = 3;

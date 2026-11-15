@@ -127,7 +127,7 @@ int main(int argc, char** argv)
     a->dispatcher(a, effGetEffectName, 0, 0, name, 0);
     CHECK(a->uniqueID == (VstInt32)0x56617651, "uid VavQ (%08x)", (unsigned)a->uniqueID);
     CHECK(!std::strcmp(name, VAVRA_EXPECT_NAME), "name \"%s\"", name);
-    CHECK(a->numParams == 629, "629 params: 0.1.0's 583 + RANDOM, the naming keyboard, the skin switch (%d)", a->numParams);
+    CHECK(a->numParams == 630, "630 params: 0.1.0's 583 + RANDOM, the naming keyboard, the skin switch and SKIN (%d)", a->numParams);
     CHECK(a->dispatcher(a, effGetVendorVersion, 0, 0, nullptr, 0) == 2000, "version 2000");
     {
         int bad = 0, i = 0;
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
             i++;
         }
         if (f) std::fclose(f);
-        CHECK(f && bad == 0 && i == 629, "order = params.lock (%d keys, %d differ)", i, bad);
+        CHECK(f && bad == 0 && i == 630, "order = params.lock (%d keys, %d differ)", i, bad);
         CHECK(!std::strcmp(g_pspecs[583].key, "random_patch"), "583 = random_patch (appended)");
         CHECK(!std::strcmp(g_pspecs[0].key, "bank_index") && !std::strcmp(g_pspecs[437].key, "ui_open"), "0 = bank_index, 437 = ui_open");
     }
@@ -377,8 +377,14 @@ int main(int argc, char** argv)
     CHECK(std::lround(plainOf(a, SKIN)) == 0 && disp(a, SKIN) == "microQ", "skin: microQ without a setting file (\"%s\")", disp(a, SKIN).c_str());
     a->setParameter(a, SKIN, 1.0f);
     settle(a, 10);
-    CHECK(readFile(skinFile) == "alt\n" && disp(a, SKIN) == "Alternative", "skin: Alternative is written to vavra-skin.txt");
-    const std::vector<uint8_t> ca = chunk(a);   // saved with the skin on Alternative: a project must not carry it
+    CHECK(readFile(skinFile) == "phoenix\n" && disp(a, SKIN) == "Phoenix", "skin: Phoenix is written to vavra-skin.txt (%s)", disp(a, SKIN).c_str());
+    key(a, idx("skin_next"));
+    settle(a, 10);
+    CHECK(std::lround(plainOf(a, SKIN)) == 0 && readFile(skinFile) == "microq\n", "SKIN: Phoenix -> microQ (round)");
+    key(a, idx("skin_next"));
+    settle(a, 10);
+    CHECK(std::lround(plainOf(a, SKIN)) == 1 && readFile(skinFile) == "alt\n" && disp(a, SKIN) == "Dark Blue", "SKIN: microQ -> Dark Blue");
+    const std::vector<uint8_t> ca = chunk(a);   // saved with the skin on Dark Blue: a project must not carry it
     a->setParameter(a, SKIN, 0.0f);
     settle(a, 10);
     CHECK(readFile(skinFile) == "microq\n", "skin: back to microQ in the file");
@@ -393,12 +399,12 @@ int main(int argc, char** argv)
     CHECK(eng(b, "preset_name") == nameA && std::lround(plainOf(b, CUT)) == 77 && std::lround(plainOf(b, GAIN)) == 300,
           "B: \"%s\", host F1 CUTOFF %.0f, GAIN %.0f", eng(b, "preset_name").c_str(), plainOf(b, CUT), plainOf(b, GAIN));
     settle(b, 10);
-    CHECK(std::lround(plainOf(b, SKIN)) == 0 && readFile(skinFile) == "microq\n", "skin: a project saved on Alternative leaves the global microQ alone");
-    b->setParameter(b, SKIN, 1.0f);
+    CHECK(std::lround(plainOf(b, SKIN)) == 0 && readFile(skinFile) == "microq\n", "skin: a project saved on Dark Blue leaves the global microQ alone");
+    b->setParameter(b, SKIN, 0.5f);
     settle(b, 10);
     run(a, 500);                                   // ~1.5 s: A's worker re-reads the file about once a second
     vavra_dbg_tick(a);
-    CHECK(std::lround(plainOf(a, SKIN)) == 1, "skin: B switches to Alternative, A follows");
+    CHECK(std::lround(plainOf(a, SKIN)) == 1, "skin: B switches to Dark Blue, A follows");
     b->setParameter(b, SKIN, 0.0f);
     settle(b, 10);
 
