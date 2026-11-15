@@ -26,7 +26,7 @@ GESTURE = "Instant"
 KNOB = 76
 BIG = 96                                             # MAIN's perf knobs
 KNOB_SIZES = (KNOB, BIG)
-DIAL = 170
+DIAL = 250
 
 
 def kname(kind, size):
@@ -336,12 +336,12 @@ def page_main(fn):
     the perf knobs under the bar, big, joined to it by blue lines."""
     pg = Page("MAIN", fn)
     d = ImageDraw.Draw(pg.art)
-    BY0, BY1 = 146, 304                                                                    # the blue bar
+    BY0, BY1 = 146, 334                                                                    # the blue bar, a wide margin round the LCD
     x0, x1 = 300, 930                                                                      # the LCD
     mid = (x0 + x1) // 2
     d.ellipse((-20, 30, 1300, 800), outline=A.BLUE + (255,), width=3)                       # the oval (its bottom below the page)
-    dx, dy = 1176, (BY0 + BY1) // 2                                                       # the red data dial; the bar ends at it
-    KP, KQ = 108, 118                                                                      # key / knob pitch in the panel
+    dx, dy = 1150, (BY0 + BY1) // 2                                                       # the red data dial, taller than the bar; the bar ends at it
+    KP, KQ = 100, 110                                                                      # key / knob pitch in the panel
     pw = 20 + 6 * KP + 30 + 2 * KQ + 16
     px0 = mid - pw // 2
     d.rounded_rectangle((px0, 6, px0 + pw, BY0 + 30), 14, fill=A.YELLOW + (255,), outline=A.BLUE + (255,), width=3)
@@ -355,8 +355,8 @@ def page_main(fn):
     pg.knob("AmpVolume", xd + 15 + KQ // 2, 78, "Volume", box=(64, 66))
     pg.knob("gain", xd + 15 + KQ // 2 + KQ, 78, "Output Gain", box=(64, 66))
     # the bar: badge, LCD, data dial
-    A.wordmark(pg.art, 26, BY0 + 22, 250)
-    y0, y1 = BY0 + 12, BY1 - 12
+    A.wordmark(pg.art, 26, BY0 + 38, 250)
+    y0, y1 = BY0 + 26, BY1 - 26
     A.lcd(pg.art, x0, y0, x1, y1, cells=0)
     d = ImageDraw.Draw(pg.art)
     r1, r2, r3 = y0 + 70, y0 + 106, y1
@@ -369,24 +369,24 @@ def page_main(fn):
     pg.kids.append(entry("preset dial", tag("vdial"), {"version": 1, "handleName": "Data"}, "%d %d %d %d" % (dx - DIAL // 2, dy - DIAL // 2, DIAL, DIAL),
                          remap=P("preset"), focus="Yes"))
     # the perf knobs under the bar, big, joined to it by blue lines with pointer tabs over each knob
-    ky = 504
+    ky = 528
     groups = [("filter 1", [("F1Cutoff", "Cutoff"), ("F1Resonance", "Resonance"), ("F1EnvMod", "Env Amount"), ("FilterEnvDecay", "F.Env Decay")], 120),
               ("amp & mod", [("AmpEnvAttack", "Attack"), ("AmpEnvRelease", "Release"), ("Lfo1Speed", "LFO 1 Speed"), ("FX2Mix", "FX 2 Mix")], 740)]
     for title, knobs, gx in groups:
         xs = [gx + i * 140 for i in range(len(knobs))]
         gm = (xs[0] + xs[-1]) // 2
-        d.line((gm, BY1, gm, 386), fill=A.BLUE + (255,), width=3)
-        d.line((xs[0], 386, xs[-1], 386), fill=A.BLUE + (255,), width=3)
+        d.line((gm, BY1, gm, 408), fill=A.BLUE + (255,), width=3)
+        d.line((xs[0], 408, xs[-1], 408), fill=A.BLUE + (255,), width=3)
         for x in xs:
-            d.line((x, 386, x, 392), fill=A.BLUE + (255,), width=3)
-            d.polygon([(x - 7, 392), (x + 7, 392), (x, 400)], fill=A.BLUE + (255,))
+            d.line((x, 408, x, 414), fill=A.BLUE + (255,), width=3)
+            d.polygon([(x - 7, 414), (x + 7, 414), (x, 422)], fill=A.BLUE + (255,))
         t = A.text_img(title.upper(), 16, A.WHITE, slant=0.2)
         tw = t.width + 22
-        d.rounded_rectangle((gm - tw // 2, 330, gm + tw // 2, 356), 7, fill=A.BLUE + (255,))
-        pg.art.alpha_composite(t, (gm - t.width // 2, 343 - t.height // 2))
+        d.rounded_rectangle((gm - tw // 2, 356, gm + tw // 2, 382), 7, fill=A.BLUE + (255,))
+        pg.art.alpha_composite(t, (gm - t.width // 2, 369 - t.height // 2))
         d = ImageDraw.Draw(pg.art)
         for (k, c), x in zip(knobs, xs):
-            pg.knob(k, x, ky, c, size=BIG, box=(98, 90))
+            pg.knob(k, x, ky, c, size=BIG, box=(96, 86))
         pg.block([k for k, _ in knobs])
     pg.block(["AmpVolume", "gain"])
     pg.block(["bank_index", "preset"], rect=(x0 - 4, r1, x1 + 4, r2 + 1))
