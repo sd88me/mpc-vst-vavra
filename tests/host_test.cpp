@@ -51,12 +51,13 @@ static int engi(AEffect* e, const char* k) { return std::atoi(eng(e, k).c_str())
 static std::string disp(AEffect* e, int i) { char b[128] = {0}; e->dispatcher(e, effGetParamDisplay, i, 0, b, 0); return b; }
 static std::string progName(AEffect* e, int i) { char b[64] = {0}; e->dispatcher(e, effGetProgramNameIndexed, i, 0, b, 0); return b; }
 
-static double g_rms;
+static double g_rms, g_peak;
 static void run(AEffect* e, int blocks, const std::vector<std::vector<uint8_t>>& midi = {}, int frames = 128)
 {
     std::vector<float> L((size_t)frames), R((size_t)frames);
     float* out[2] = {L.data(), R.data()};
     double acc = 0; long n = 0;
+    g_peak = 0;
     for (int b = 0; b < blocks; b++)
     {
         if (b == 0 && !midi.empty())
@@ -76,7 +77,7 @@ static void run(AEffect* e, int blocks, const std::vector<std::vector<uint8_t>>&
         }
         e->processReplacing(e, nullptr, out, frames);
         if (g_giveTime) g_time.ppqPos += frames * g_time.tempo / 60.0 / g_time.sampleRate;
-        for (int i = 0; i < frames; i++) { acc += (double)L[i] * L[i] + (double)R[i] * R[i]; n += 2; }
+        for (int i = 0; i < frames; i++) { acc += (double)L[i] * L[i] + (double)R[i] * R[i]; n += 2; g_peak = std::max(g_peak, (double)std::max(std::fabs(L[i]), std::fabs(R[i]))); }
         std::this_thread::sleep_for(std::chrono::microseconds(2900 * frames / 128));
     }
     g_rms = n ? std::sqrt(acc / n) : 0;
@@ -160,6 +161,17 @@ int main(int argc, char** argv)
         std::printf("    (silent: %s; %s; %s; ready %d)\n", eng(a, "loading_status").c_str(), eng(a, "engine_stats").c_str(), eng(a, "preset_name").c_str(), vavra_dbg_ready(a));
     CHECK(on > 1e-3, "note on is audible (rms %.4f)", on);
     CHECK(off < on, "note off decays (rms %.4f)", off);
+    {   // a loud chord at OUTPUT GAIN 400 %: passes full scale in float (the 16-bit path clipped it hard on the MPC)
+        const int G = idx("gain");
+        a->setParameter(a, G, norm(G, 400));
+        settle(a, 20);
+        run(a, 300, {{0x90, 48, 127}, {0x90, 55, 127}, {0x90, 60, 127}, {0x90, 64, 127}, {0x90, 67, 127}, {0x90, 72, 127}});
+        const double pk = g_peak;
+        run(a, 400, {{0x80, 48, 0}, {0x80, 55, 0}, {0x80, 60, 0}, {0x80, 64, 0}, {0x80, 67, 0}, {0x80, 72, 0}});
+        a->setParameter(a, G, norm(G, 100));
+        settle(a, 20);
+        CHECK(pk > 1.0, "a loud chord passes full scale unclipped (peak %.3f)", pk);
+    }
 
     std::printf("== value params\n");
     a->setParameter(a, CUT, norm(CUT, 64));

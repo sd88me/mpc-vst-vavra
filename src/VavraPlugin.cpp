@@ -34,6 +34,7 @@
 
 extern "C" {
 #include "engine.h"
+extern "C" void vavra_render_float(void* inst, float* out, int frames);   // src/dsp/vavra_engine.cpp: the ring as float stereo
 }
 #include "params_gen.h"
 
@@ -325,11 +326,11 @@ private:
     {
         if (std::fabs(step_ - 1.0) < 1e-9)
         {
-            eng_->render(inst_, pcm_, n);
+            vavra_render_float(inst_, pcm_, n);
             for (int i = 0; i < n; ++i)
             {
-                L[i] = pcm_[2 * i] * (1.0f / 32768.0f);
-                if (R) R[i] = pcm_[2 * i + 1] * (1.0f / 32768.0f);
+                L[i] = pcm_[2 * i];
+                if (R) R[i] = pcm_[2 * i + 1];
             }
             return;
         }
@@ -338,9 +339,9 @@ private:
             while (have_ < 2 || frac_ >= 1.0)   // keep two source frames: [0] at frac_ = 0, [1] at 1
             {
                 if (have_ >= 2) { src_[0] = src_[2]; src_[1] = src_[3]; --have_; frac_ -= 1.0; }
-                if (srcPos_ >= srcLen_) { eng_->render(inst_, pcm_, kChunk); srcPos_ = 0; srcLen_ = kChunk; }
-                src_[have_ * 2] = pcm_[srcPos_ * 2] * (1.0f / 32768.0f);
-                src_[have_ * 2 + 1] = pcm_[srcPos_ * 2 + 1] * (1.0f / 32768.0f);
+                if (srcPos_ >= srcLen_) { vavra_render_float(inst_, pcm_, kChunk); srcPos_ = 0; srcLen_ = kChunk; }
+                src_[have_ * 2] = pcm_[srcPos_ * 2];
+                src_[have_ * 2 + 1] = pcm_[srcPos_ * 2 + 1];
                 ++srcPos_;
                 ++have_;
             }
@@ -723,7 +724,7 @@ private:
     double step_ = 1.0, frac_ = 0;
     int have_ = 0, srcPos_ = 0, srcLen_ = 0;
     float src_[4] = {0, 0, 0, 0};
-    int16_t pcm_[kChunk * 2] = {0};
+    float pcm_[kChunk * 2] = {0};   // float from the engine: a loud sound passes full scale instead of clipping
     uint32_t lastRev_ = 0;
     int counter_ = 0;
     long tick_ = 0;

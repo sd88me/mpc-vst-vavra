@@ -1,7 +1,7 @@
 /* Vavra for MPC: gearmulator's Waldorf microQ emulation (mqLib: the microQ's 68k firmware plus its DSP56362 voice DSP) as an
  * mpc-vst-plugins engine (wrapper/engine.h). GPL-3.0.
  *
- * One emulator thread per instance runs mqLib::Device through gearmulator's synthLib::Plugin, fills a ring of int16 stereo, and
+ * One emulator thread per instance runs mqLib::Device through gearmulator's synthLib::Plugin, fills a ring of float stereo, and
  * render() only drains it. Everything the host does reaches the device as MIDI or sysex queued from the host's thread: notes and
  * controllers as they are, parameters as single parameter change sysex (a whole byte: some bytes carry two parameters as bit
  * fields), sounds as a ROM single copied into the single edit buffer. The parameter table is generated (tools/gen_params.py ->
@@ -132,7 +132,7 @@ struct Inst {
     std::atomic<bool> stop{false}, ready{false}, failed{false};
     std::atomic<int> harvest_progress{-1};                   // names harvested so far (-1: none running)
 
-    std::vector<int16_t> ring = std::vector<int16_t>(kRingFrames * 2);
+    std::vector<float> ring = std::vector<float>(kRingFrames * 2);     // float: a loud sound may pass full scale (no clipping here)
     std::atomic<uint32_t> wr{0}, rd{0};
     std::atomic<uint32_t> underruns{0};
     std::atomic<uint32_t> ring_min{0xffffffffu}, burst_max{0};
@@ -665,11 +665,11 @@ void emu_main(Inst *in) {
             if (++cnt % 345 == 0) { xlog("[out] %.4f %.4f %.4f %.4f %.4f %.4f", pk[0], pk[1], pk[2], pk[3], pk[4], pk[5]); memset(pk, 0, sizeof pk); }
         }
         if (!to_ring) return;
-        const float g = in->gain.load() / 100.0f * 32767.0f;
-        uint32_t w = in->wr.load(std::memory_order_relaxed);
+        const float g = in->gain.load() / 100.0f;      // full scale = 1.0; above it passes on (the host mixes in float), only a
+        uint32_t w = in->wr.load(std::memory_order_relaxed);   // runaway value is held at +-8 (+18 dB)
         for (int i = 0; i < kBlock; i++) {
-            in->ring[(w & (kRingFrames - 1)) * 2] = (int16_t)std::max(-32768.0f, std::min(32767.0f, outl[i] * g));
-            in->ring[(w & (kRingFrames - 1)) * 2 + 1] = (int16_t)std::max(-32768.0f, std::min(32767.0f, outr[i] * g));
+            in->ring[(w & (kRingFrames - 1)) * 2] = std::max(-8.0f, std::min(8.0f, outl[i] * g));
+            in->ring[(w & (kRingFrames - 1)) * 2 + 1] = std::max(-8.0f, std::min(8.0f, outr[i] * g));
             w++;
         }
         in->wr.store(w, std::memory_order_release);
@@ -1131,9 +1131,9 @@ int eng_get(void *p, const char *key, char *buf, int n) {
     return -1;
 }
 
-void eng_render(void *p, int16_t *out, int frames) {
-    Inst *in = (Inst *)p;
-    if (!in || !in->ready.load(std::memory_order_acquire)) { memset(out, 0, (size_t)frames * 4); return; }
+/* the ring's frames to `out` (interleaved stereo float), silence for what is missing (an underrun) */
+void render_float(Inst *in, float *out, int frames) {
+    if (!in || !in->ready.load(std::memory_order_acquire)) { memset(out, 0, (size_t)frames * 2 * sizeof(float)); return; }
     uint32_t r = in->rd.load(std::memory_order_relaxed);
     const uint32_t avail = in->wr.load(std::memory_order_acquire) - r;
     if (avail < in->ring_min.load(std::memory_order_relaxed)) in->ring_min.store(avail, std::memory_order_relaxed);
@@ -1145,8 +1145,19 @@ void eng_render(void *p, int16_t *out, int frames) {
     }
     in->rd.store(r, std::memory_order_release);
     if (got < frames) {
-        memset(out + got * 2, 0, (size_t)(frames - got) * 4);
+        memset(out + got * 2, 0, (size_t)(frames - got) * 2 * sizeof(float));
         in->underruns.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+/* the 1.x API's int16 render (clips at full scale); the native front end takes floats (vavra_render_float) */
+void eng_render(void *p, int16_t *out, int frames) {
+    float f[2 * 512];
+    for (int done = 0; done < frames;) {
+        const int n = std::min(frames - done, 512);
+        render_float((Inst *)p, f, n);
+        for (int i = 0; i < 2 * n; i++) out[2 * done + i] = (int16_t)lrintf(std::max(-32768.0f, std::min(32767.0f, f[i] * 32767.0f)));
+        done += n;
     }
 }
 
@@ -1164,3 +1175,4 @@ const mpc_engine_t engine = {eng_create, eng_destroy, eng_midi, eng_set, eng_get
 }  // namespace
 
 extern "C" const mpc_engine_t *mpc_engine(void) { return &engine; }
+extern "C" void vavra_render_float(void *p, float *out, int frames) { render_float((Inst *)p, out, frames); }
