@@ -123,84 +123,117 @@ def well(im, x0, y0, x1, y1, r=6):
 
 
 # ---- knobs -------------------------------------------------------------------------------------------------------------------
-def _knob_base(size, red):
-    """The cap and skirt, shaded per pixel at 4x (light from the upper left): a ribbed black skirt like the editor's knobs, a dark
-    groove, a glossy domed cap with a broad specular highlight. The light does not turn with the knob, so one base serves every frame."""
+LIGHT = (-0.45, -0.62, 0.64)          # from the upper left (screen y down), towards the viewer
+
+
+def _norm(v):
+    l = math.sqrt(sum(x * x for x in v))
+    return tuple(x / l for x in v)
+
+
+def _knob_layers(size, red):
+    """The microQ's knob seen from above, shaded per pixel at 4x: a wide tapered cone in dark smoky grey (the fluted sides), and the small
+    top cap: a glossy black rim around a darker domed face (red on the cutoff). The light does not turn with the knob, so these two layers
+    serve every frame; the flutes, which do turn, are drawn per frame between them."""
     S = 4
     n = size * S
-    R = n / 2.0 - 3 * S                     # the skirt's outer radius (room for the shadow)
-    cx = cy = n / 2.0 - 1.5 * S
-    L = (-0.45, -0.62, 0.64)
-    ln = math.sqrt(sum(v * v for v in L))
-    L = tuple(v / ln for v in L)
-    H = (L[0], L[1], L[2] + 1.0)            # half vector (viewer on +z)
-    hn = math.sqrt(sum(v * v for v in H))
-    H = tuple(v / hn for v in H)
-    im = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    px = im.load()
-    ribs = 44
-    capc = (150, 22, 18) if red else (26, 26, 28)
+    R = n / 2.0 - 4 * S
+    cx = cy = n / 2.0 - 2 * S
+    L = _norm(LIGHT)
+    H = _norm((L[0], L[1], L[2] + 1.0))
+    cone = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    cap = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    pc, pt = cone.load(), cap.load()
+    RC = 0.56                              # the top cap's radius (of R)
+    face = (150, 26, 22) if red else (58, 58, 62)
     for y in range(n):
         for x in range(n):
             dx, dy = x + 0.5 - cx, y + 0.5 - cy
             r = math.hypot(dx, dy) / R
             if r > 1.0:
                 continue
-            th = math.atan2(dy, dx)
-            ux, uy = math.cos(th), math.sin(th)
-            if r > 0.70:                                    # skirt: a cone with ribs
-                t = math.sin(ribs * th)
-                nr, nt, nz = 0.55, 0.55 * t, 0.62
-                nx, ny = nr * ux - nt * uy, nr * uy + nt * ux
-                if r > 0.95:                                # the rounded outer edge falls away
-                    k = (r - 0.95) / 0.05
-                    nx, ny, nz = nx + ux * k, ny + uy * k, nz * (1 - 0.7 * k)
-                nl = math.sqrt(nx * nx + ny * ny + nz * nz)
-                nx, ny, nz = nx / nl, ny / nl, nz / nl
-                dif = max(0.0, nx * L[0] + ny * L[1] + nz * L[2])
-                spc = max(0.0, nx * H[0] + ny * H[1] + nz * H[2]) ** 24
-                g = 12 + 70 * dif + 150 * spc
-                col = (g, g, g + 3)
-            elif r > 0.655:                                 # the groove between skirt and cap
-                g = 6 + 10 * (1 - abs(r - 0.68) / 0.03)
-                col = (g, g, g)
-            else:                                           # the cap: a shallow dome, glossy
-                q = r / 0.655
-                nx, ny = ux * q * 0.42, uy * q * 0.42
-                nz = math.sqrt(max(0.0, 1 - nx * nx - ny * ny))
-                dif = max(0.0, nx * L[0] + ny * L[1] + nz * L[2])
-                spc = max(0.0, nx * H[0] + ny * H[1] + nz * H[2]) ** 40
-                spc2 = max(0.0, nx * H[0] + ny * H[1] + nz * H[2]) ** 6
-                base = [c * (0.55 + 0.6 * dif) for c in capc]
-                col = tuple(b + 210 * spc + 26 * spc2 for b in base)
-                if q > 0.93:                                # a fine bevel at the cap's edge
-                    col = tuple(c * 0.75 for c in col)
-            px[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
-    # the drop shadow on the panel, under everything
-    sh = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(sh).ellipse((cx - R + 2 * S, cy - R + 4 * S, cx + R + 3 * S, cy + R + 5 * S), fill=(60, 40, 0, 120))
-    sh = sh.filter(ImageFilter.GaussianBlur(3 * S))
-    sh.alpha_composite(im)
-    return sh, (cx, cy, R)
+            ux, uy = (dx / (r * R), dy / (r * R)) if r > 0 else (0.0, 0.0)
+            if r >= RC - 0.01:             # the cone: the sides slope outwards and down
+                k = (r - RC) / (1 - RC)
+                nz = 0.78 - 0.45 * k * k
+                nn = _norm((ux * 0.62, uy * 0.62, nz))
+                dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
+                spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 18
+                g = 36 + 64 * dif + 60 * spc
+                edge = max(0.0, (r - 0.96) / 0.04)          # the rounded foot
+                g *= 1 - 0.5 * edge
+                pc[x, y] = (int(g * 1.02), int(g), int(g * 0.94), 255)
+            if r < RC:                      # the top cap
+                if r > RC - 0.11:           # its rim: a glossy black band
+                    t = (r - (RC - 0.11)) / 0.11
+                    nn = _norm((ux * (t - 0.3) * 1.4, uy * (t - 0.3) * 1.4, 1.0))
+                    spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 30
+                    g = 10 + 30 * max(0.0, sum(a * b for a, b in zip(nn, L))) + 200 * spc
+                    pt[x, y] = (int(g), int(g), int(g + 2), 255)
+                else:                       # its face: a shallow smoky dome with a soft highlight
+                    q = r / (RC - 0.11)
+                    nn = _norm((ux * q * 0.35, uy * q * 0.35, 1.0))
+                    dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
+                    spc = max(0.0, sum(a * b for a, b in zip(nn, H)))
+                    col = [c * (0.6 + 0.5 * dif) + 150 * spc ** 50 + 30 * spc ** 6 for c in face]
+                    pt[x, y] = tuple(int(min(255, c)) for c in col) + (255,)
+    shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 130))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(3 * S))
+    return shadow, cone, cap, (cx, cy, R, RC)
+
+
+def _flutes(n, cx, cy, R, RC, rot):
+    """the six scalloped flutes of the sides, turned by `rot` (radians): each a long recess from just outside the cap to near the foot,
+    its wall away from the light catching it (a groove), the whole flute brighter where it faces the light"""
+    S = 4
+    lay = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    la = math.atan2(LIGHT[1], LIGHT[0])
+    for i in range(6):
+        phi = rot + i * math.pi / 3
+        face = 0.5 + 0.5 * math.cos(phi - la)                  # 1 = facing the light
+        ux, uy, vx, vy = math.cos(phi), math.sin(phi), -math.sin(phi), math.cos(phi)
+
+        def oval(r0, r1, w, off, col):
+            pts = []
+            for k in range(40):
+                t = k / 39.0 * math.pi * 2
+                rr = (r0 + r1) / 2 + (r1 - r0) / 2 * math.cos(t)
+                ww = w * (0.55 + 0.45 * (rr - r0) / (r1 - r0)) * math.sin(t)   # wider towards the foot
+                pts.append((cx + (ux * rr + vx * (ww + off)) * R, cy + (uy * rr + vy * (ww + off)) * R))
+            ImageDraw.Draw(lay).polygon(pts, fill=col)
+        base = int(62 + 64 * face)
+        oval(RC + 0.01, 0.97, 0.16, 0.0, (base, base, int(base * 0.93), 255))
+        lit = int(96 + 110 * face)
+        side = -1 if math.sin(phi - la) > 0 else 1              # the wall turned away from the light
+        oval(RC + 0.06, 0.93, 0.075, side * 0.05, (lit, lit, int(lit * 0.94), 255))
+    lay = lay.filter(ImageFilter.GaussianBlur(1.2 * S))
+    mask = Image.new("L", (n, n), 0)
+    ImageDraw.Draw(mask).ellipse((cx - R * 0.97, cy - R * 0.97, cx + R * 0.97, cy + R * 0.97), fill=255)
+    out = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    out.paste(lay, (0, 0), Image.composite(lay.getchannel("A"), Image.new("L", (n, n), 0), mask))
+    return out
 
 
 def knob_strip(size=76, frames=101, red=False):
-    """The editor's knob as a film strip: the shaded base plus a white pointer line on the cap (cream on the red cutoff cap),
-    -135 .. +135 degrees over the frames."""
+    """The microQ knob as a film strip (-135 .. +135 degrees over the frames): cone, turning flutes, top cap, and a light slot on the cap
+    from its centre to its rim as the pointer (cream on the red cutoff cap)."""
     S = 4
-    base, (cx, cy, R) = _knob_base(size, red)
+    shadow, cone, cap, (cx, cy, R, RC) = _knob_layers(size, red)
+    n = size * S
     out = Image.new("RGBA", (size, size * frames), (0, 0, 0, 0))
-    pointer = (255, 240, 220, 255) if red else (246, 246, 246, 255)
+    hi = (255, 236, 214, 255) if red else (214, 214, 210, 255)
     for f in range(frames):
-        im = base.copy()
-        d = ImageDraw.Draw(im)
         a = math.radians(-135 + 270 * f / (frames - 1) - 90)
-        x0, y0 = cx + math.cos(a) * R * 0.16, cy + math.sin(a) * R * 0.16
-        x1, y1 = cx + math.cos(a) * R * 0.60, cy + math.sin(a) * R * 0.60
-        d.line((x0 + S, y0 + S, x1 + S, y1 + S), fill=(0, 0, 0, 120), width=int(3.4 * S))       # its shadow on the cap
-        d.line((x0, y0, x1, y1), fill=pointer, width=int(3.4 * S))
-        d.ellipse((x1 - 1.7 * S, y1 - 1.7 * S, x1 + 1.7 * S, y1 + 1.7 * S), fill=pointer)
-        d.ellipse((x0 - 1.7 * S, y0 - 1.7 * S, x0 + 1.7 * S, y0 + 1.7 * S), fill=pointer)
+        im = shadow.copy()
+        im.alpha_composite(cone)
+        im.alpha_composite(_flutes(n, cx, cy, R, RC, a))
+        im.alpha_composite(cap)
+        d = ImageDraw.Draw(im)
+        x0, y0 = cx + math.cos(a) * R * 0.05, cy + math.sin(a) * R * 0.05
+        x1, y1 = cx + math.cos(a) * R * (RC - 0.12), cy + math.sin(a) * R * (RC - 0.12)
+        d.line((x0, y0, x1, y1), fill=(8, 8, 10, 255), width=int(4.6 * S))                         # the slot
+        d.line((x0 - 0.6 * S, y0 - 0.6 * S, x1 - 0.6 * S, y1 - 0.6 * S), fill=hi, width=int(2.6 * S))  # its lit edge
         out.paste(im.resize((size, size), Image.LANCZOS), (0, f * size))
     return out
 
