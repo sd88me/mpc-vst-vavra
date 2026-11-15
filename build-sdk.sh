@@ -80,12 +80,13 @@ if [ "${1:-}" = beta ]; then
   [ -d "${VAVRA_BANKS:-data/banks}" ] && cp -r "${VAVRA_BANKS:-data/banks}"/. "$FOLDER/vavra/banks/"
   [ -f data/sounds.dat ] && cp data/sounds.dat "$FOLDER/vavra/"
 fi
-# the native skin from tools/make_tui.py (skins/); until it exists, the builder's generated default pages
+# the native skin from tools/make_tui.py (skins/). Until it exists: the released 0.1.0 skin from the 1.x build (vst/build/skin, ./build.sh),
+# which binds the same parameter indices (its popups bind the old flags, now inert). The builder's gen_ui cannot page 583 parameters.
 if [ -f tools/make_tui.py ]; then python3 tools/make_tui.py; fi
 if [ -d skins ]; then cp -r skins/. "$FOLDER/Plugin Skins/"
-else
-  [ -f build/sdk-native/params.json ] || { echo "run ./build-sdk.sh test once first (params.json for the default skin)" >&2; exit 1; }
-  python3 "$SDK/tools/gen_ui.py" --params build/sdk-native/params.json --out "$FOLDER/Plugin Skins" >/dev/null
+elif [ -d "vst/build/skin/sd88me - VST - Vavra/Plugin Skins" ]; then
+  echo "note: no skins/ yet, using the 1.x skin"; cp -r "vst/build/skin/sd88me - VST - Vavra/Plugin Skins/." "$FOLDER/Plugin Skins/"
+else echo "no skin: run tools/make_tui.py or ./build.sh once" >&2; exit 1
 fi
 python3 "$SDK/tools/validate.py" "$FOLDER" || true
 echo "built: $FOLDER"
