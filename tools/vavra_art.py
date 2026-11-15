@@ -273,6 +273,53 @@ def knob_strip(size=76, frames=101, red=False, bipolar=False, fill="ring", point
     return out
 
 
+def dial_strip(size=150, frames=101):
+    """The microQ's red data dial seen from above: a translucent red cylinder, glossy, with a darker centre and a finger dimple near the
+    rim that turns with the value (the light does not)."""
+    S = 4
+    n = size * S
+    R = n / 2.0 - 16 * S                   # room for the shadow inside the frame
+    cx = cy = n / 2.0 - 4 * S
+    L = _norm(LIGHT)
+    H = _norm((L[0], L[1], L[2] + 1.0))
+    base = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    px = base.load()
+    for y in range(n):
+        for x in range(n):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy) / R
+            if r > 1.0:
+                continue
+            ux, uy = (dx / (r * R), dy / (r * R)) if r > 0 else (0.0, 0.0)
+            if r > 0.86:                                   # the rounded outer wall
+                t = (r - 0.86) / 0.14
+                nn = _norm((ux * t * 1.2, uy * t * 1.2, 1.0 - 0.6 * t))
+            elif r > 0.80:                                 # a fine ridge
+                nn = _norm((-ux * 0.4, -uy * 0.4, 1.0))
+            else:                                          # the face: dished slightly towards the middle
+                nn = _norm((-ux * r * 0.25, -uy * r * 0.25, 1.0))
+            dif = max(0.0, sum(a * b for a, b in zip(nn, L)))
+            spc = max(0.0, sum(a * b for a, b in zip(nn, H)))
+            deep = 0.55 + 0.45 * min(1.0, r / 0.8)         # translucent: darker red in the middle, lit through at the edge
+            red = 150 * deep * (0.65 + 0.5 * dif) + 60 * (r > 0.86) * dif
+            col = (red + 220 * spc ** 50 + 40 * spc ** 8, 14 + 26 * deep * dif + 200 * spc ** 50, 12 + 20 * deep * dif + 190 * spc ** 50)
+            px[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
+    shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 6 * S, cx + R + 5 * S, cy + R + 8 * S), fill=(30, 10, 0, 140))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(3 * S))
+    shadow.alpha_composite(base)
+    out = Image.new("RGBA", (size, size * frames), (0, 0, 0, 0))
+    for f in range(frames):
+        im = shadow.copy()
+        d = ImageDraw.Draw(im)
+        a = math.radians(-135 + 270 * f / (frames - 1) - 90)
+        px_, py_, dr = cx + math.cos(a) * R * 0.6, cy + math.sin(a) * R * 0.6, R * 0.11
+        d.ellipse((px_ - dr, py_ - dr, px_ + dr, py_ + dr), fill=(90, 8, 6, 200))                          # the dimple
+        d.arc((px_ - dr, py_ - dr, px_ + dr, py_ + dr), 20, 200, fill=(255, 150, 130, 150), width=int(1.5 * S))   # its lit lower edge
+        out.paste(im.resize((size, size), Image.LANCZOS), (0, f * size))
+    return out
+
+
 # ---- fields, keys, switches ------------------------------------------------------------------------------------------------
 def pick_field(im, cx, cy, w, h=34):
     """A pick-list field (static art): the editor's cream field in a blue frame, a blue arrow at the right; the choice is live text."""
