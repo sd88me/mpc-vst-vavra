@@ -133,9 +133,8 @@ def _norm(v):
 
 def _knob_layers(size, red):
     """The microQ's knob seen from above, shaded per pixel at 4x: a tapered cone in dark smoky plastic, and a big flat top: a black rim
-    around brushed metal (red metal on the cutoff), as the microQ editor draws it. The light does not turn with the knob and circular
-    brushing looks the same at any angle, so these layers serve every frame; the five subtle side windows, which do turn, are drawn per
-    frame between them."""
+    around flat smoky plastic (red on the cutoff). The light does not turn with the knob, so these layers serve every frame; the five
+    subtle side windows, which do turn, are drawn per frame between them."""
     S = 4
     n = size * S
     R = n / 2.0 - 10 * S                   # room around the knob for the value ring
@@ -147,11 +146,7 @@ def _knob_layers(size, red):
     pc, pt = cone.load(), cap.load()
     RC = 0.74                              # the top's radius (of R)
     RIM = 0.08                             # its black rim
-    metal = (178, 74, 62) if red else (150, 150, 146)
-    la = math.atan2(LIGHT[1], LIGHT[0])
-    import random
-    rnd = random.Random(7)
-    grain = [rnd.uniform(-1, 1) for _ in range(4096)]            # concentric brushing: a fine random brightness per radius
+    smoke = (150, 44, 36) if red else (78, 72, 56)       # smoky plastic, the yellow panel faintly through it (red on the cutoff)
     for y in range(n):
         for x in range(n):
             dx, dy = x + 0.5 - cx, y + 0.5 - cy
@@ -173,14 +168,13 @@ def _knob_layers(size, red):
                     spc = max(0.0, sum(a * b for a, b in zip(nn, H))) ** 30
                     g = 8 + 26 * max(0.0, sum(a * b for a, b in zip(nn, L))) + 190 * spc
                     pt[x, y] = (int(g), int(g), int(g + 2), 255)
-                else:                       # the flat brushed-metal top (circular brushing: bright sectors across the light)
-                    th = math.atan2(dy, dx)
-                    sheen = abs(math.cos(th - la - math.pi / 2)) ** 3
-                    gr = grain[int(r * R * 6) % 4096] * 7
-                    lin = 1.04 - 0.10 * ((dx + dy) / (2 * R * RC) + 0.5)
-                    col = [(c * (0.78 + 0.34 * sheen) + gr) * lin for c in metal]
-                    if r > RC - RIM - 0.03:
-                        col = [c * 0.7 for c in col]                                  # a fine bevel at its edge
+                else:                       # the flat smoky-plastic top: see-through dark, the shaft faintly under it
+                    q = r / (RC - RIM)
+                    lin = 1.08 - 0.16 * ((dx + dy) / (2 * R * RC) + 0.5)        # an even fall-off across the flat face
+                    depth = 0.80 if r < 0.28 else 0.80 + 0.20 * min(1.0, (r - 0.28) / 0.08)   # the shaft, a little darker
+                    col = [c * lin * depth for c in smoke]
+                    if q > 0.93:
+                        col = [c * 0.65 for c in col]                                  # a fine bevel at its edge
                     pt[x, y] = tuple(int(min(255, max(0, c))) for c in col) + (255,)
     shadow = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).ellipse((cx - R + 3 * S, cy - R + 5 * S, cx + R + 4 * S, cy + R + 7 * S), fill=(60, 40, 0, 130))
@@ -234,7 +228,7 @@ def knob_strip(size=76, frames=101, red=False, bipolar=False, fill="ring", point
     gr = R * (RC - 0.08)
     band = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     bd = ImageDraw.Draw(band)
-    for off, alpha in ((-0.38, 44), (-0.12, 22)):
+    for off, alpha in ((-0.38, 34), (-0.12, 16)):
         o = off * gr
         w = 0.16 * gr if alpha > 30 else 0.07 * gr
         bd.line((cx - gr * 1.2 + o, cy + gr * 1.2 + o, cx + gr * 1.2 + o, cy - gr * 1.2 + o), fill=(255, 255, 255, alpha), width=int(w))
