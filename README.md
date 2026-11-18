@@ -43,14 +43,28 @@ microQ's front panel, in three skins.
   byte-swapped: both work). The OS update file `mq_2_23.mid` also boots, but it holds no factory sounds, so banks A to C are then empty.
 
 ## Install
-Download one of these from [Releases](https://github.com/sd88me/mpc-vst-vavra/releases):
-- **`Vavra-<version>-mpc-sdk.zip`**: the plugin folder `sd88me - VST - Vavra`. Copy it into a `VST2 Plugins` folder on a drive of the MPC, put your
-  ROM in its `vavra/roms/` (sound sets in `vavra/banks/`), and restart the MPC. Turn on **Preferences > Enhancements (Beta) > Enable Enhancements**
-  and **External Plugin Support** first. Vavra is then listed under External VST Plugins > sd88me.
-- **`Vavra-<version>-mpc-aarch64.zip`**: run `install.sh` on the device as root (see its INSTALL.md). It upgrades a 0.1.0 install in place and keeps
-  your ROM, sound sets and favourites. The desktop Plugin Manager uses this one too.
+There are two plugin formats. Use one of them, not both: they are the same plugin.
 
-Use one of the two, not both.
+| Plugin format | Zip | How it is installed | Plugin folder |
+|---|---|---|---|
+| **SDK format** (MPC OS 3.10.1 or later) | `Vavra-<version>-mpc-sdk.zip` | By hand: unzip it, copy the folder `sd88me - VST - Vavra` into `VST2 Plugins` at the root of a drive the MPC can see, turn on **Preferences > Enhancements (Beta) > Enable Enhancements** and **External Plugin Support**, and restart the MPC | `VST2 Plugins/sd88me - VST - Vavra/` on that drive |
+| **Older format** (plugins listed in `MPC.settings`) | `Vavra-<version>-mpc-aarch64.zip` | With the **OpenMPC Plugin Manager**, or by hand over SSH with the zip's `install.sh` (needs root access; on a Live III add `-t /nvme/Synths`; the zip's `INSTALL.md` has the details) | `sd88me - VST - Vavra/` in the Synths folder it was installed to |
+
+The zips are on [Releases](https://github.com/sd88me/mpc-vst-vavra/releases).
+
+### Adding your ROM
+Your ROM goes in the plugin folder's `vavra/roms/` (the zip already has the folder), for example
+`VST2 Plugins/sd88me - VST - Vavra/vavra/roms/`. Sound sets go in `vavra/banks/` (optional).
+
+| Plugin format | How to add your ROM |
+|---|---|
+| SDK format | By hand: over USB, or with the MPC's file browser. |
+| Older format, with the OpenMPC Plugin Manager | Use its **Your ROMs and files** step: it checks each file and copies it into the right folder. Or copy them by hand. |
+| Older format, with `install.sh` | By hand: with `scp`, over USB, or with the MPC's file browser. |
+
+### Upgrading
+- **SDK format:** copy the new folder over the old one (merge it, don't delete the old folder first) so your ROM and your sound sets and favourites stay.
+- **Older format:** the OpenMPC Plugin Manager and `install.sh` upgrade in place and keep your ROM and your sound sets and favourites.
 
 The firmware boots in about 2 seconds. **The first time**, Vavra then reads the names and data of the 300 ROM sounds in the background, which
 takes about a minute (the status line shows "reading sound names"); they are kept in `vavra/sounds.dat`, so later loads have them at once.
